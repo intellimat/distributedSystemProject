@@ -1,10 +1,16 @@
-import http.server
-import socketserver
+from http.server import BaseHTTPRequestHandler
+from http.server import HTTPServer
+from socketserver import ThreadingMixIn
+import threading
 from os import curdir, sep
 
 PORT = 8000
 
-class MyHandler(http.server.BaseHTTPRequestHandler):
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+	'''Handle requests in a separate thread'''
+	pass
+
+class MyHandler(BaseHTTPRequestHandler):
     '''
     def do_HEAD(self):
         self.send_response(200)
@@ -13,9 +19,9 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
     '''
     def do_GET(self):
         if self.path == '':
-            self.respond({'status': 200})
+        	self.respond({'status': 200})
         else:
-            self.respond({'status': 500})
+	        self.respond({'status': 500})
 
     def handle_http(self, status_code, path):
         f = open(curdir + '/index.html')
@@ -29,7 +35,10 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
     def respond(self, opts):
         response = self.handle_http(opts['status'], self.path)
         self.wfile.write(response)
-
-with socketserver.TCPServer(("", PORT), MyHandler) as httpd:
-    print("serving at port", PORT)
-    httpd.serve_forever()
+try:
+	httpd = ThreadedHTTPServer(('localhost', PORT), MyHandler)
+	print("serving at port", PORT)
+	print('Use <Ctrl-C> to stop')
+	httpd.serve_forever()
+except Exception:
+	pass

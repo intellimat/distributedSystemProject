@@ -10,7 +10,14 @@
 <!-- Latest compiled and minified CSS -->
      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
 
-    <link rel="stylesheet" href="index.css">
+     <style>
+     #msg_instruction{
+         margin-top: 2em;
+         margin-bottom: 1em;
+         font-size: 2em;
+     }
+
+    </style>
      <link href="https://fonts.googleapis.com/css?family=Raleway|Montserrat|Nunito+Sans|Ubuntu+Condensed&display=swap" rel="stylesheet">
 
 </head>
@@ -30,19 +37,20 @@
             <input type="text" class="form-control" id="surname">
           </div>
           <div class="form-group">
-            <label for="emailAddress">Card number</label>
-            <input type="number" class="form-control" id="emailAddress">
+            <label for="cardNumber">Card number</label>
+            <input type="number" class="form-control" id="cardNumber">
           </div>
           <div class="form-group">
             <label for="cvv">CVV</label>
             <input type="number" class="form-control" id="cvv">
           </div>
           <div class="form-group">
-            <label for="emailAddress">Expiry date</label>
-            <input type="text" class="form-control" id="emailAddress" placeholder="name@example.com">
+            <label for="expDate">Expiration date</label>
+            <input type="number" class="form-control" id="expDate">
           </div>
-        <button type="submit" class="btn btn-primary btn-lg">Submit</button>
+        <button class="btn btn-primary btn-lg" id="submit_button">Submit</button>
     </form>
+
 
 
 <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
@@ -51,7 +59,50 @@
 
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
 
-<script src="/index.js"></script>
+<script>
+
+$('#submit_button').click(function(){
+         let name = document.getElementById('name').value;
+         let surname = document.getElementById('surname').value;
+         let cardNumber = document.getElementById('cardNumber').value;
+         let cvv = document.getElementById('cvv').value;
+         let expDate = document.getElementById('expDate').value;
+
+         // console.log(name + ' ' + surname + ' ' + email + ' ' + username + ' ' + password + ' ' + role);
+
+         let object = {
+             name: name,
+             surname: surname,
+             cardNumber: cardNumber,
+             cvv: cvv,
+             expDate: expDate
+         }
+
+         let json = JSON.stringify(object);
+         console.log(json);
+
+         fetch("/pay", {
+     	    body: json,
+     	    method: "POST"
+     	}).then(function(response){
+            if(response.ok) {
+                if (response.status == 200) {
+                    return response;
+                }
+                else if (response.status == 401){
+                    throw new Error("401");
+                }
+            }
+            throw new Error();
+     	}).catch(function(error){
+            console.log(error);
+            alert("Error catched ");
+     	});
+
+ });
+
+
+</script>
 
 </body>
 </html>

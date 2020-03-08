@@ -23,11 +23,7 @@ class MyHandler(BaseHTTPRequestHandler):
 	def do_POST(self):
 		print('Managing POST request')
 		if self.path == '/pay':
-			data = self.readResponse().decode("utf-8")
-			self.parsedData = json.loads(data)
-			print('Parsed data: \n')
-			print(self.parsedData)
-			''' here we gotta call the gateway server'''
+			self.handle_http_POST(200, self.path)
 		else:
 			pass
 
@@ -42,7 +38,27 @@ class MyHandler(BaseHTTPRequestHandler):
 			self.respond(bytes(page,'UTF-8'))
 
 	def handle_http_POST(self, status_code, path):
-		pass
+		data = self.readResponse().decode("utf-8")
+		self.parsedData = json.loads(data)
+		print('Parsed data: \n')
+		print(self.parsedData)
+
+		self.send_response(status_code)
+		self.send_header('Content-type', 'text/html')
+		self.end_headers()
+		print('\n\nFORMING HTML RESPONSE')
+		content = '''
+		<html><head><title>Title goes here.</title></head>
+		<body><p>This is a test.</p>
+		<p>You accessed path: {}</p>
+		</body></html>
+		'''.format(path)
+		ca = self.client_address
+		print('Client address: ')
+		print(ca)
+		self.respond(bytes(content,'UTF-8'))
+		print('\n\nSENT RESPONSE')
+		''' here we gotta call the gateway server'''
 
 
 	def respond(self, response):

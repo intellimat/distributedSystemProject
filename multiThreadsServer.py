@@ -3,30 +3,19 @@ import socket
 from threading import Thread
 from os import curdir, sep
 
+import controller
+
 class threadServer(Thread):
     def __init__(self,csocket):
         Thread.__init__(self)
         self.csocket = csocket
-
+        self.host, self.port = self.csocket.getpeername()
+        self.controller = controller.Controller(csocket)
         print (f'New server socket thread created')
 
 
-    def run(self):
-        host, port = self.csocket.getpeername()
-
-
-        data = self.csocket.recv(4092)
-        msg = data.decode("utf-8")
-        print(f"\nServer received the message:\n\n\n '{msg}' \n\n\nfrom {host} on port {port}")
-        f = open(curdir + '/index.html')
-        page = f.read()
-        f.close()
-        self.csocket.send(bytes(page,"utf-8"))
-        self.csocket.close()        #closes the TCP connection
-        print(f'\nThe connection to {host} on port {port} has been closed by the server')
-
-
-
+    def run(self): #code run by each thread
+        self.controller.parseRequest()
 
 # AF_INET means IPv4, SCOCK_STREM means TCP
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

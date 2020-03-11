@@ -3,14 +3,14 @@ import socket
 from threading import Thread
 from os import curdir, sep
 
-import controller
+import controllerGatewayServer
 
 class threadServer(Thread):
     def __init__(self,csocket):
         Thread.__init__(self)
         self.csocket = csocket
         self.host, self.port = self.csocket.getpeername()
-        self.controller = controller.Controller(csocket)
+        self.controller = controllerGatewayServer.Controller(csocket)
         print (f'New server socket thread created')
 
 

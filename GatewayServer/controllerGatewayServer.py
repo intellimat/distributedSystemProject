@@ -1,4 +1,5 @@
 from os import curdir, sep
+import socket
 
 class Controller(object):
     def __init__(self,csocket):
@@ -6,13 +7,13 @@ class Controller(object):
         self.host, self.port = self.csocket.getpeername()
 
     def parseRequest(self):
-        msgFromClient = self.readRequest()
+        msgFromClient = self.readRequest(self.csocket)
         print(f"\nServer received the message:\n\n\n '{msgFromClient}' \n\n\nfrom {self.host} on port {self.port}\n\n\n")
-
+        self.writeResponse(self.csocket, 'Thank you for the POST data.')
         ''' here goes all the logic of the gateway server '''
 
-    def readRequest(self): #reads the message coming from the client
-        rawData = self.csocket.recv(4092)
+    def readRequest(self, socket): #reads the message coming from the client
+        rawData = socket.recv(4092)
         decodedData = rawData.decode("utf-8")
         return decodedData
 
@@ -22,8 +23,8 @@ class Controller(object):
         f.close()
         return content
 
-    def writeResponse(self, data): #writes a response to the client
-        self.csocket.send(bytes(data,"utf-8"))
+    def writeResponse(self, socket, data): #writes a response to the client
+        socket.send(bytes(data,"utf-8"))
         print("\nResponse sent to the client. ")
 
     def closeConnection(self): #closes the TCP connection

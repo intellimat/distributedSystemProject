@@ -1,9 +1,13 @@
 from os import curdir, sep
+import sys
+import socket
+
 
 class Controller(object):
     def __init__(self,csocket):
         self.csocket = csocket
         self.host, self.port = self.csocket.getpeername()
+        print(f'System path is : \n\n{sys.path}\n\n')
 
     def parseRequest(self):
         msgFromClient = self.readRequest(self.csocket)
@@ -13,6 +17,10 @@ class Controller(object):
             self.sendMethodNotAllowed()
             self.closeConnection()
 
+        elif self.isFaviconRequest(msgFromClient):
+            self.sendFavicon()
+            self.closeConnection()
+
         elif self.isHomepageRequest(msgFromClient):
             self.sendHomepage()
             self.closeConnection()
@@ -20,9 +28,13 @@ class Controller(object):
         elif self.isPOSTRequest(msgFromClient):
             path = self.getPOSTpath(msgFromClient)
             try:
+                print('Trying to connect to the gateway server.')
                 self.gs = self.connectToGateway('localhost', 12000)
+                print('\nConnected to the gateway.')
                 self.forwardMsgToGateway(msgFromClient)
-                ''' wait for the response from the gateway server '''
+                gatewayResponse = self.readRequest(self.gs)
+                print(f'\n\nThe response from the gateway is: "{gatewayResponse}" \n\n')
+                'Here goes all the logic to manage the response from the gateway server'
             except Exception:
                 print('Connection to gateway failed. ')
 
@@ -30,8 +42,8 @@ class Controller(object):
             self.sendBadRequest()
             self.closeConnection()
 
-    def readRequest(self, socket): #reads the message coming from the client
-        rawData = socket.recv(4092)
+    def readRequest(self, sock): #reads the message coming from the client
+        rawData = sock.recv(4092)
         decodedData = rawData.decode("utf-8")
         return decodedData
 
@@ -66,6 +78,12 @@ class Controller(object):
     def isHomepageRequest(self, clientMsg):
         return clientMsg[0:3] == 'GET' and clientMsg[4] == '/'   #we gotta write also the case of /index.html
 
+    def isFaviconRequest(self, msgFromClient):
+        print('Checking if is favicon request \n')
+        arguments = msgFromClient.split()
+        httpMethod = arguments[0]
+        path = arguments[1]
+        return httpMethod == 'GET' and path == '/favicon.ico'
 
     def isPOSTRequest(self,clientMsg):
         return clientMsg[0:4] == 'POST'
@@ -78,7 +96,13 @@ class Controller(object):
     def sendHomepage(self):
         page = self.readFile(curdir + '/index.html')
         response_msg = 'HTTP/1.1 200 OK\n\n' + page
-        print(f"Message to send to the client as response:\n{response_msg}")
+        print(f"Message to send to the client as response: HTML index.html page")
+        self.writeResponse(self.csocket, response_msg)
+
+    def sendFavicon(self):
+        favicon = self.readFile(curdir + '/favicon.ico')
+        response_msg = 'HTTP/1.1 200 OK\n\n' + favicon
+        print(f"Message to send to the client as response: favicon ")
         self.writeResponse(self.csocket, response_msg)
 
     def connectToGateway(self, IP, PORT):

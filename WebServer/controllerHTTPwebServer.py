@@ -1,16 +1,19 @@
-from os import curdir, sep
+import os
 import sys
 import socket
 
+pathRepo = os.path.dirname(os.path.dirname(os.getcwd()))
+sys.path.insert(1, pathRepo)
+
+from distributedSystemProject.utils import inputOutput as io
 
 class Controller(object):
     def __init__(self,csocket):
         self.csocket = csocket
         self.host, self.port = self.csocket.getpeername()
-        print(f'System path is : \n\n{sys.path}\n\n')
 
     def parseRequest(self):
-        msgFromClient = self.readRequest(self.csocket)
+        msgFromClient = io.readRequest(self.csocket)
         print(f"\nServer received the message:\n\n\n '{msgFromClient}' \n\n\nfrom {self.host} on port {self.port}\n\n\n")
 
         if not(self.checkMethod(msgFromClient)):
@@ -32,7 +35,7 @@ class Controller(object):
                 self.gs = self.connectToGateway('localhost', 12000)
                 print('\nConnected to the gateway.')
                 self.forwardMsgToGateway(msgFromClient)
-                gatewayResponse = self.readRequest(self.gs)
+                gatewayResponse = io.readRequest(self.gs)
                 print(f'\n\nThe response from the gateway is: "{gatewayResponse}" \n\n')
                 'Here goes all the logic to manage the response from the gateway server'
             except Exception:
@@ -42,20 +45,6 @@ class Controller(object):
             self.sendBadRequest()
             self.closeConnection()
 
-    def readRequest(self, sock): #reads the message coming from the client
-        rawData = sock.recv(4092)
-        decodedData = rawData.decode("utf-8")
-        return decodedData
-
-    def readFile(self, path): #reads a file stored in a directory specified by the path argument
-        f = open(path)
-        content = f.read()
-        f.close()
-        return content
-
-    def writeResponse(self, socket, data): #writes a response to the client
-        socket.send(bytes(data,"utf-8"))
-        print("\nResponse sent to the client. ")
 
     def closeConnection(self): #closes the TCP connection
         self.csocket.close()
@@ -69,11 +58,11 @@ class Controller(object):
 
     def sendMethodNotAllowed(self):
         response_msg = 'HTTP/1.1 405 Method Not Allowed\n'
-        self.writeResponse(self.csocket, response_msg)
+        io.writeResponse(self.csocket, response_msg)
 
     def sendBadRequest(self):
         response_msg = 'HTTP/1.1 400 Bad Request\n'
-        self.writeResponse(self.csocket, response_msg)
+        io.writeResponse(self.csocket, response_msg)
 
     def isHomepageRequest(self, clientMsg):
         return clientMsg[0:3] == 'GET' and clientMsg[4] == '/'   #we gotta write also the case of /index.html
@@ -94,16 +83,16 @@ class Controller(object):
         return path
 
     def sendHomepage(self):
-        page = self.readFile(curdir + '/index.html')
+        page = io.readFile(os.curdir + '/index.html')
         response_msg = 'HTTP/1.1 200 OK\n\n' + page
         print(f"Message to send to the client as response: HTML index.html page")
-        self.writeResponse(self.csocket, response_msg)
+        io.writeResponse(self.csocket, response_msg)
 
     def sendFavicon(self):
-        favicon = self.readFile(curdir + '/favicon.ico')
+        favicon = io.readFile(os.curdir + '/favicon.ico')
         response_msg = 'HTTP/1.1 200 OK\n\n' + favicon
         print(f"Message to send to the client as response: favicon ")
-        self.writeResponse(self.csocket, response_msg)
+        io.writeResponse(self.csocket, response_msg)
 
     def connectToGateway(self, IP, PORT):
         # AF_INET means IPv4, SCOCK_STREM means TCP
@@ -112,4 +101,4 @@ class Controller(object):
         return s
 
     def forwardMsgToGateway(self, msg):
-        self.writeResponse(self.gs, msg)
+        io.writeResponse(self.gs, msg)

@@ -1,7 +1,6 @@
 import sys
 import socket
 from threading import Thread
-from os import curdir, sep
 
 import controllerHTTPwebServer
 

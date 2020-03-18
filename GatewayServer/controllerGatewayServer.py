@@ -12,15 +12,11 @@ class Controller(object):
         self.host, self.port = self.csocket.getpeername()
 
     def parseRequest(self):
-        msgFromClient = self.readRequest(self.csocket)
+        msgFromClient = io.readRequest(self.csocket)
         print(f"\nServer received the message:\n\n\n '{msgFromClient}' \n\n\nfrom {self.host} on port {self.port}\n\n\n")
         io.writeResponse(self.csocket, 'Thank you for the POST data.')
+        io.closeConnection(self.csocket)
         ''' here goes all the logic of the gateway server '''
-
-
-    def closeConnection(self): #closes the TCP connection
-        self.csocket.close()
-        print(f'\nThe connection to {self.host} on port {self.port} has been closed by the server')
 
 
     def sendMethodNotAllowed(self):

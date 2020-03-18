@@ -18,37 +18,22 @@ class Controller(object):
 
         if not(self.checkMethod(msgFromClient)):
             self.sendMethodNotAllowed()
-            self.closeConnection()
+            io.closeConnection(self.csocket)
 
         elif self.isFaviconRequest(msgFromClient):
             self.sendFavicon()
-            self.closeConnection()
+            io.closeConnection(self.csocket)
 
         elif self.isHomepageRequest(msgFromClient):
             self.sendHomepage()
-            self.closeConnection()
+            io.closeConnection(self.csocket)
 
         elif self.isPOSTRequest(msgFromClient):
-            path = self.getPOSTpath(msgFromClient)
-            try:
-                print('Trying to connect to the gateway server.')
-                self.gs = self.connectToGateway('localhost', 12000)
-                print('\nConnected to the gateway.')
-                self.forwardMsgToGateway(msgFromClient)
-                gatewayResponse = io.readRequest(self.gs)
-                print(f'\n\nThe response from the gateway is: "{gatewayResponse}" \n\n')
-                'Here goes all the logic to manage the response from the gateway server'
-            except Exception:
-                print('Connection to gateway failed. ')
+            self.handlePOSTrequest(msgFromClient)
 
         else:
             self.sendBadRequest()
-            self.closeConnection()
-
-
-    def closeConnection(self): #closes the TCP connection
-        self.csocket.close()
-        print(f'\nThe connection to {self.host} on port {self.port} has been closed by the server')
+            io.closeConnection(self.csocket)
 
     def checkMethod(self, clientMsg):
         httpMethod = clientMsg.split()[0]
@@ -57,12 +42,16 @@ class Controller(object):
         return False
 
     def sendMethodNotAllowed(self):
-        response_msg = 'HTTP/1.1 405 Method Not Allowed\n'
-        io.writeResponse(self.csocket, response_msg)
+        s = io.setCode('HTTP/1.1', 405)
+        s = io.setResponseAnswer(s, 'Method Not Allowed\n')
+        s = io.setConnection(s, 'Close')
+        io.writeResponse(self.csocket, s)
 
     def sendBadRequest(self):
-        response_msg = 'HTTP/1.1 400 Bad Request\n'
-        io.writeResponse(self.csocket, response_msg)
+        s = io.setCode('HTTP/1.1', 400)
+        s = io.setResponseAnswer(s, 'Bad Request\n')
+        s = io.setConnection(s, 'Close')
+        io.writeResponse(self.csocket, s)
 
     def isHomepageRequest(self, clientMsg):
         return clientMsg[0:3] == 'GET' and clientMsg[4] == '/'   #we gotta write also the case of /index.html
@@ -84,15 +73,29 @@ class Controller(object):
 
     def sendHomepage(self):
         page = io.readFile(os.curdir + '/index.html')
-        response_msg = 'HTTP/1.1 200 OK\n\n' + page
-        print(f"Message to send to the client as response: HTML index.html page")
-        io.writeResponse(self.csocket, response_msg)
+        pageLength = len(page)
+        # s is the response message
+        s = io.setCode('HTTP/1.1', 200)
+        s = io.setResponseAnswer(s, 'OK')
+        s = io.setContentLength(s, pageLength)
+        s = io.setContentType(s, 'text/html')
+        s = io.setConnection(s, 'Close')
+        s = s + f'\n\n{page}'
+        print(f"Message to send to the client as response: \n\n {s}")
+        io.writeResponse(self.csocket, s)
 
     def sendFavicon(self):
         favicon = io.readFile(os.curdir + '/favicon.ico')
-        response_msg = 'HTTP/1.1 200 OK\n\n' + favicon
+        faviconLength = len(favicon)
+        # s is the response message
+        s = io.setCode('HTTP/1.1', 200)
+        s = io.setResponseAnswer(s, 'OK')
+        s = io.setContentLength(s, faviconLength)
+        s = io.setContentType(s, 'image/x-icon')
+        s = io.setConnection(s, 'Close')
+        s = s + f'\n\n{favicon}'
         print(f"Message to send to the client as response: favicon ")
-        io.writeResponse(self.csocket, response_msg)
+        io.writeResponse(self.csocket, s)
 
     def connectToGateway(self, IP, PORT):
         # AF_INET means IPv4, SCOCK_STREM means TCP
@@ -102,3 +105,18 @@ class Controller(object):
 
     def forwardMsgToGateway(self, msg):
         io.writeResponse(self.gs, msg)
+
+    def handlePOSTrequest(self, msgFromClient):
+        path = self.getPOSTpath(msgFromClient)
+        try:
+            print('Trying to connect to the gateway server.')
+            self.gs = self.connectToGateway('localhost', 12000)
+            print('\nConnected to the gateway.')
+            self.forwardMsgToGateway(msgFromClient)
+            gatewayResponse = io.readRequest(self.gs)
+            print(f'\n\nThe response from the gateway is: "{gatewayResponse}" \n\n')
+            'Here goes all the logic to manage the response from the gateway server'
+            io.closeConnection(self.csocket)
+        except Exception:
+            print('Connection to gateway failed. ')
+            io.closeConnection(self.csocket)

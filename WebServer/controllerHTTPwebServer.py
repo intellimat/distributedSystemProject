@@ -109,6 +109,7 @@ class Controller(object):
     def handlePOSTrequest(self, msgFromClient):
         path = self.getPOSTpath(msgFromClient)
         try:
+            'HERE WE GOTTA CHECK IF WE ARE ALREADY CONNECTED TO THE GATEWAY'
             print('Trying to connect to the gateway server.')
             self.gs = self.connectToGateway('localhost', 12000)
             print('\nConnected to the gateway.')
@@ -116,7 +117,20 @@ class Controller(object):
             gatewayResponse = io.readRequest(self.gs)
             print(f'\n\nThe response from the gateway is: "{gatewayResponse}" \n\n')
             'Here goes all the logic to manage the response from the gateway server'
+            'we need to wait for the gateway to process the request but for now we send an ok 200 to the client'
+            s = io.setCode('HTTP/1.1', 200)
+            s = io.setResponseAnswer(s, 'OK')
+            s = io.setContentLength(s, 0)
+            s = io.setConnection(s, 'Close\n\n')
+            io.writeResponse(self.csocket, s)
+            print(f'Sent \n{s} to the client after POST request')
             io.closeConnection(self.csocket)
-        except Exception:
+        except socket.error as exc:
             print('Connection to gateway failed. ')
+            s = io.setCode('HTTP/1.1', 500)
+            s = io.setResponseAnswer(s, 'Internal Server Error')
+            s = io.setConnection(s, 'Close\n\n')
+            s = s + 'Socket error: Connection to the gateway failed. \n'
+            io.writeResponse(self.csocket, s)
+            print(f'Sent \n{s} to the client after POST request\n')
             io.closeConnection(self.csocket)

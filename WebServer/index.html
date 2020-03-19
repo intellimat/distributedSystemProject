@@ -87,14 +87,17 @@ $('#submit_button').click(function(){
      	}).then(function(response){
             if(response.ok) {
                 if (response.status == 200) {
+                    console.log('response status 200')
                     return response;
                 }
                 else if (response.status == 401){
                     throw new Error("401");
                 }
             }
-            throw new Error();
-     	}).catch(function(error){
+            throw new Error('400');
+     	}).then(function(response){
+            alert('POST request correctly received. ');
+        }).catch(function(error){
             console.log(error);
             alert("Error catched ");
      	});

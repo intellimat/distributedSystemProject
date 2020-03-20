@@ -81,7 +81,7 @@ class Controller(object):
         s = io.setContentType(s, 'text/html')
         s = io.setConnection(s, 'Close')
         s = s + f'\n\n{page}'
-        print(f"Message to send to the client as response: \n\n {s}")
+        print(f"Message to send to the client as response: \n\n HTML page")
         io.writeResponse(self.csocket, s)
 
     def sendFavicon(self):
@@ -107,15 +107,14 @@ class Controller(object):
         io.writeResponse(self.gs, msg)
 
     def handlePOSTrequest(self, msgFromClient):
-        path = self.getPOSTpath(msgFromClient)
+        #path = self.getPOSTpath(msgFromClient)
         try:
-            'HERE WE GOTTA CHECK IF WE ARE ALREADY CONNECTED TO THE GATEWAY'
             print('Trying to connect to the gateway server.')
             self.gs = self.connectToGateway('localhost', 12000)
             print('\nConnected to the gateway.')
             self.forwardMsgToGateway(msgFromClient)
-            gatewayResponse = io.readRequest(self.gs)
-            print(f'\n\nThe response from the gateway is: "{gatewayResponse}" \n\n')
+            #gatewayResponse = io.readRequest(self.gs)
+            #print(f'\n\nThe response from the gateway is: "{gatewayResponse}" \n\n')
             'Here goes all the logic to manage the response from the gateway server'
             'we need to wait for the gateway to process the request but for now we send an ok 200 to the client'
             s = io.setCode('HTTP/1.1', 200)

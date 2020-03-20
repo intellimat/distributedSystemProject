@@ -1,6 +1,7 @@
 import socket
 import os, sys
 import json
+import pathlib
 
 pathRepo = os.path.dirname(os.path.dirname(os.getcwd()))
 sys.path.insert(1, pathRepo)
@@ -15,7 +16,8 @@ class Controller(object):
     def parseRequest(self):
         msgFromClient = io.readRequest(self.csocket)
         print(f"\nServer received the message:\n\n\n '{msgFromClient}' \n\n\nfrom {self.host} on port {self.port}\n\n\n")
-
+        proc = self.getProcessor(msgFromClient)
+        print(f'The processor is: {proc}')
         ''' here goes all the logic of the gateway server '''
         path = self.getPOSTpath()
 
@@ -47,7 +49,27 @@ class Controller(object):
         return json.loads(s)
 
     def getProcessor(self, msgFromClient):
-        pass
+        basicPath = pathlib.Path.cwd()
+        filePath = pathlib.Path(basicPath, 'processorsMappingAndAddresses', 'Bines.txt')
+        print(f'File path is:\n {filePath}')
+        f = io.readFile(filePath)
+        data = self.getJSONobjectFromString(msgFromClient)
+        CardNumber = data.get('cardNumber')
+        firstDigit = cardNumber[0]
+
+        buffer = []
+        prec = ''
+        for c in f:
+            if c != '\n':
+                buffer.append(c)
+                if (prec == '#' and buffer[0] == firstDigit):
+                    return buffer[3]
+                elif prec == '#':
+                    buffer = []
+                    prec = ''
+                else:
+                    prec = c
+
 
     def managePayment(self, msgFromClient):
         processorNumber = self.getProcessor()

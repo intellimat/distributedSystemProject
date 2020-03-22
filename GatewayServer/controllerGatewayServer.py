@@ -19,7 +19,7 @@ class Controller(object):
         proc = self.getProcessor(msgFromClient)
         print(f'The processor is: {proc}')
         ''' here goes all the logic of the gateway server '''
-        path = self.getPOSTpath()
+        path = self.getPOSTpath(msgFromClient)
 
         if not self.isCorrectPath(path):
             pass
@@ -42,7 +42,6 @@ class Controller(object):
 
     def getPOSTpath(self,clientMsg):
         path = clientMsg.split()[1]
-        print(f"the path is {path}")
         return path
 
     def getJSONobjectFromString(self, s):
@@ -51,10 +50,10 @@ class Controller(object):
     def getProcessor(self, msgFromClient):
         basicPath = pathlib.Path.cwd()
         filePath = pathlib.Path(basicPath, 'processorsMappingAndAddresses', 'Bines.txt')
-        print(f'File path is:\n {filePath}')
         f = io.readFile(filePath)
-        data = self.getJSONobjectFromString(msgFromClient)
-        CardNumber = data.get('cardNumber')
+        body = msgFromClient.split('\r\n\r\n')[1]
+        data = self.getJSONobjectFromString(body)
+        cardNumber = data.get("cardNumber")
         firstDigit = cardNumber[0]
 
         buffer = []
@@ -63,7 +62,7 @@ class Controller(object):
             if c != '\n':
                 buffer.append(c)
                 if (prec == '#' and buffer[0] == firstDigit):
-                    return buffer[3]
+                    return buffer[2]
                 elif prec == '#':
                     buffer = []
                     prec = ''
@@ -87,7 +86,8 @@ class Controller(object):
         return path == '/pay'
 
     def isCorrectData(self, msgFromClient):
-        data = self.getJSONobjectFromString(msgFromClient)
+        body = msgFromClient.split('\r\n\r\n')[1]
+        data = self.getJSONobjectFromString(body)
         for field in data:  #check no empty fields
             if len(field) < 1:
                 return False

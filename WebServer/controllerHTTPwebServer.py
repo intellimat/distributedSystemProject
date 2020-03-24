@@ -24,12 +24,14 @@ class Controller(object):
             self.sendFavicon()
             io.closeConnection(self.csocket)
 
+        elif self.isGatewayRequest(msgFromClient):
+            self.handleGatewayRequest(msgFromClient)
+            #the connection will be closed by the handleGatewayRequest method
+
         elif self.isHomepageRequest(msgFromClient):
             self.sendHomepage()
             io.closeConnection(self.csocket)
 
-        elif self.isPOSTRequest(msgFromClient):
-            self.handlePOSTrequest(msgFromClient)
 
         else:
             self.sendBadRequest()
@@ -63,10 +65,13 @@ class Controller(object):
         path = arguments[1]
         return httpMethod == 'GET' and path == '/favicon.ico'
 
-    def isPOSTRequest(self,clientMsg):
-        return clientMsg[0:4] == 'POST'
+    def isGatewayRequest(self,clientMsg):
+        print('\nChecking if it is gateway request \n')
+        path = self.getPath(clientMsg)
+        basicPath = path.split('/')[1]
+        return basicPath == 'gatewaySD'
 
-    def getPOSTpath(self,clientMsg):
+    def getPath(self,clientMsg):
         path = clientMsg.split()[1]
         print(f"the path is {path}")
         return path
@@ -81,7 +86,7 @@ class Controller(object):
         s = io.setContentType(s, 'text/html')
         s = io.setConnection(s, 'Close')
         s = s + f'\n\n{page}'
-        print(f"Message to send to the client as response: \n\n HTML page")
+        print(f"Message to send to the client (user in this case) as response: \n\n HTML page")
         io.writeResponse(self.csocket, s)
 
     def sendFavicon(self):
@@ -106,23 +111,16 @@ class Controller(object):
     def forwardMsgToGateway(self, msg):
         io.writeResponse(self.gs, msg)
 
-    def handlePOSTrequest(self, msgFromClient):
-        #path = self.getPOSTpath(msgFromClient)
+    def handleGatewayRequest(self, msgFromClient):
         try:
             print('Trying to connect to the gateway server.')
             self.gs = self.connectToGateway('localhost', 12000)
             print('\nConnected to the gateway.')
             self.forwardMsgToGateway(msgFromClient)
-            #gatewayResponse = io.readRequest(self.gs)
-            #print(f'\n\nThe response from the gateway is: "{gatewayResponse}" \n\n')
-            'Here goes all the logic to manage the response from the gateway server'
-            'we need to wait for the gateway to process the request but for now we send an ok 200 to the client'
-            s = io.setCode('HTTP/1.1', 200)
-            s = io.setResponseAnswer(s, 'OK')
-            s = io.setContentLength(s, 0)
-            s = io.setConnection(s, 'Close\n\n')
-            io.writeResponse(self.csocket, s)
-            print(f'Sent \n{s} to the client after POST request')
+            response = io.readRequest(self.gs)
+            print(f'Received \n{response} from the gateway')
+            io.writeResponse(self.csocket, response)
+            print(f'Sent \n{response} to the client after a Gateway request')
             io.closeConnection(self.csocket)
         except socket.error as exc:
             print('Connection to gateway failed. ')

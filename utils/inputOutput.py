@@ -1,6 +1,6 @@
 ''' Helper module '''
 
-def readRequest(sock): #reads the message coming from the client
+def readMessage(sock): #reads the message coming from the client
     rawData = sock.recv(4092)
     decodedData = rawData.decode("utf-8")
     return decodedData
@@ -11,9 +11,9 @@ def readFile(path): #reads a file stored in a directory specified by the path ar
     f.close()
     return content
 
-def writeResponse(sock, data): #writes a response to the client
+def writeMessage(sock, data): #writes a response to the client
     sock.send(bytes(data,"utf-8"))
-    print("\nResponse sent. ")
+    print("\nMessage sent. ")
 
 def setContentLength(msg, msgLength):
     return msg + f'\nContent-Length: {msgLength}'
@@ -27,7 +27,7 @@ def setConnection(msg, connection):
 def setCode(msg, code):
     return msg + f' {str(code)}'
 
-def setResponseAnswer(msg, answer):
+def setMessageAnswer(msg, answer):
     return msg + f' {answer}'
 
 def closeConnection(socket): #closes the TCP connection

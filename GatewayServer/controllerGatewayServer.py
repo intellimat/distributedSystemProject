@@ -14,15 +14,14 @@ class Controller(object):
         self.host, self.port = self.csocket.getpeername()
 
     def parseRequest(self):
-        msgFromClient = io.readRequest(self.csocket)
+        msgFromClient = io.readMessage(self.csocket)
         print(f"\nServer received the message:\n\n\n '{msgFromClient}' \n\n\nfrom {self.host} on port {self.port}\n\n\n")
 
-        ''' here goes all the logic of the gateway server '''
         path = self.getPath(msgFromClient)
         print(f'\n\nPath of the request is {path}\n\n')
 
         if not self.isCorrectPath(path):
-            print('\n\nEnter isCorrectPath method\n\n')
+            pass
 
         elif path == '/gatewaySD/info':
             self.handleInformationRequest()
@@ -32,23 +31,55 @@ class Controller(object):
         else:
             pass
 
+    def connectToProcessor(self, IP, PORT):
+        # AF_INET means IPv4, SCOCK_STREM means TCP
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((IP, PORT))
+        return s
+
     def getProcessorsInfo(self):
-        basicPath = pathlib.Path.cwd().parent
+        try:
+            p1_address = self.findAddress(1)
+            p2_address = self.findAddress(2)
+            p3_address = self.findAddress(3)
+        except Exception as exc:
+            print(f'\n{exc}\n\n')
 
-        filePath = pathlib.Path(basicPath, 'Procesador1', 'config.txt')
-        f1 = io.readFile(filePath)
+        try:
+            p1_socket = self.connectToProcessor(p1_address[0], p1_address[1])
+            p2_socket = self.connectToProcessor(p2_address[0], p2_address[1])
+            p3_socket = self.connectToProcessor(p3_address[0], p3_address[1])
 
-        filePath = pathlib.Path(basicPath, 'Procesador2', 'config.txt')
-        f2 = io.readFile(filePath)
+            httpRequest = 'GET /info HTTP/1.1\n\n'
 
-        filePath = pathlib.Path(basicPath, 'Procesador3', 'config.txt')
-        f3 = io.readFile(filePath)
-        style = 'style = "margin-left: 2em; font-weight: normal; font-size: 22px;"'
-        allProcsConfig = f'<ul>\n<li {style} >{f1}</li><br>\n<li {style} >{f2}</li><br>\n<li {style} >{f3}</li><br>\n</ul>'
+            io.writeMessage(p1_socket, httpRequest)
+            io.writeMessage(p2_socket, httpRequest)
+            io.writeMessage(p3_socket, httpRequest)
 
-        return allProcsConfig
+            f1 = io.readMessage(p1_socket)
+            f2 = io.readMessage(p2_socket)
+            f3 = io.readMessage(p3_socket)
+
+            style = 'style = "margin-left: 2em; font-weight: normal; font-size: 22px;"'
+            allProcsConfig = f'<ul>\n<li {style} >{f1}</li><br>\n<li {style} >{f2}</li><br>\n<li {style} >{f3}</li><br>\n</ul>'
+
+            return allProcsConfig
+
+        except socket.error as exc:
+            print('Connection to a processor failed. ')
+            '''
+            s = io.setCode('HTTP/1.1', 500)
+            s = io.setMessageAnswer(s, 'Internal Server Error')
+            s = io.setConnection(s, 'Close\n\n')
+            s = s + 'Socket error: Connection to a processor failed. \n'
+            io.writeMessage(self.csocket, s)
+            print(f'Sent \n{s} to the client (WebServer in this case) after request\n')
+            io.closeConnection(self.csocket)
+            '''
+            #raise socket exception
 
     def handleInformationRequest(self):
+        #try except socket exception
         data = self.getProcessorsInfo()
         page = io.readFile(os.curdir + '/info.html')
         v = page.split('<div class="infoProcs">')
@@ -56,26 +87,22 @@ class Controller(object):
         pageLength = len(updatedHTML)
         # s is the response message
         s = io.setCode('HTTP/1.1', 200)
-        s = io.setResponseAnswer(s, 'OK')
+        s = io.setMessageAnswer(s, 'OK')
         s = io.setContentLength(s, pageLength)
         s = io.setContentType(s, 'text/html')
         s = io.setConnection(s, 'Close')
         s = s + f'\n\n{updatedHTML}'
         print(f"Message to send to the client (WebServer in this case) as response: \n\n HTML page")
-        io.writeResponse(self.csocket, s)
+        io.writeMessage(self.csocket, s)
         io.closeConnection(self.csocket)
-
-    def sendProcessorsInfoPage(self):
-        page = io.readFile(os.curdir + '/info.html')
-
 
     def sendMethodNotAllowed(self):
         response_msg = 'HTTP/1.1 405 Method Not Allowed\n'
-        io.writeResponse(self.csocket, response_msg)
+        io.writeMessage(self.csocket, response_msg)
 
     def sendBadRequest(self):
         response_msg = 'HTTP/1.1 400 Bad Request\n'
-        io.writeResponse(self.csocket, response_msg)
+        io.writeMessage(self.csocket, response_msg)
 
     def isPOSTRequest(self,clientMsg):
         return clientMsg[0:4] == 'POST'
@@ -109,7 +136,6 @@ class Controller(object):
                 else:
                     prec = c
 
-
     def managePayment(self, msgFromClient):
         ''' here we gotta call checkData '''
         processorNumber = self.getProcessor()
@@ -117,11 +143,27 @@ class Controller(object):
         self.callProcessor(address)
         'wait for response and then forward the response to the client'
 
-    def callProcessor(self, address):
-        pass
-
     def findAddress(self, processor):
-        pass
+        basicPath = pathlib.Path.cwd()
+        filePath = pathlib.Path(basicPath, 'processorsMappingAndAddresses', 'Procesadores.txt')
+        f = io.readFile(filePath)
+        print(f'\nFILE LOADED IS:\n{f}')
+        buffer = []
+        for c in f:
+            print(f'Current buffer is: {buffer}\n')
+            if c != '\n':
+                buffer.append(c)
+            elif int(buffer[0]) == processor:
+                s = ''.join(buffer)
+                print(f'\nAddress: {s}\n')
+                v = s.split('#')
+                IP = v[1]
+                PORT = int(v[2])
+                return (IP,PORT)
+            else:
+                buffer = []
+
+        raise Exception('Processor not present in the list')
 
     def isCorrectPath(self, path):
         if path == '/gatewaySD' or path == '/gatewaySD/info':

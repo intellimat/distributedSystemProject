@@ -7,6 +7,7 @@ pathRepo = os.path.dirname(os.path.dirname(os.getcwd()))
 sys.path.insert(1, pathRepo)
 
 from distributedSystemProject.utils import inputOutput as io
+from distributedSystemProject.utils import stringManager as sm
 
 class Controller(object):
     def __init__(self,csocket):
@@ -26,8 +27,17 @@ class Controller(object):
         elif path == '/gatewaySD/info':
             self.handleInformationRequest()
 
-        elif path == '/gatewaySD':
+        elif path == '/gatewaySD/auth':
             self.managePayment(msgFromClient)
+
+        elif path == '/gatewaySD/status':
+            pass
+
+        elif path == '/gatewaySD/fl':
+            pass
+
+        elif path == '/gatewaySD/ul':
+            pass
         else:
             pass
 
@@ -138,10 +148,71 @@ class Controller(object):
 
     def managePayment(self, msgFromClient):
         ''' here we gotta call checkData '''
-        processorNumber = self.getProcessor()
+        processorNumber = self.getProcessor(msgFromClient)
         address = self.findAddress(processorNumber)
-        self.callProcessor(address)
-        'wait for response and then forward the response to the client'
+        p_socket = self.establishConnection(address)
+        self.sendDataToProcessor(p_socket, msgFromClient)
+        response = io.readMessage(p_socket)
+        counter = 1
+        while response != '<ACK>' and counter<3:
+            counter += 1
+            self.sendDataToProcessor(p_socket, msgFromClient)
+            response = io.readMessage(p_socket)
+        if response != '<ACK>':
+            raise Exception('The processor cannot receive data correctly.  ')
+        msgFromProc = io.readMessage(p_socket) #the answer
+        if not self.isLRC_ok(msgFromProc):
+            pass
+        else:
+            io.writeMessage(p_socket, '<ACK>')
+            io.writeMessage(p_socket, '<EOT>')
+            io.closeConnection(p_socket)
+            self.sendResponseToWebServer(param)
+
+    def isLRC_ok(self, msgFromProc):
+        v = msgFromProc.split('<STX>')
+        vu = v[1].split('<ETX>')
+        answer = vu[0]
+        lrc_fromProc = int(vu[1])
+        calculated_lrc = sm.getLRCvalueFromString(answer)
+        return calculated_lrc == lrc_fromProc
+
+    def sendResponseToWebServer(self,parm):
+        pass
+
+
+    def establishConnection(self,address):
+        p_IP = address[0]
+        p_PORT = address[1]
+        p_socket = self.connectToProcessor(p_IP, p_PORT)
+        io.writeMessage(p_socket,'<ENQ>')
+        response = io.readMessage(p_socket)
+        counter = 1
+        while response != '<ACK>' and counter<3:
+            counter += 1
+            io.writeMessage(p_socket,'<ENQ>')
+            response = io.readMessage(p_socket)
+        if response != '<ACK>':
+            raise Exception('Impossible to establish connection with the selected processor. ')
+        print('Connection to processor established. ')
+        return p_socket
+
+    def sendDataToProcessor(self, msgFromClient):
+        body = msgFromClient.split('\r\n\r\n')[1]
+        data = self.getJSONobjectFromString(body)
+        name = data.get('name'),
+        surname = data.get('surname'),
+        cardNumber = data.get('cardNumber')
+        cvv = data.get('cvv')
+        expDate = data.get('expDate')
+        amount = data.get('amount')
+        s = f'1#{name} {surname}#{cardNumber}#{amount}#{cvv}#{expDate}'
+        lrc = sm.getLRCvalueFromString(s)
+        s = '<STX>' + s + '<ETX>' + lrc
+        io.writeMessage(p_socket, s)
+
+    def fromatAuthMessage(self):
+        pass
 
     def findAddress(self, processor):
         basicPath = pathlib.Path.cwd()
@@ -166,7 +237,7 @@ class Controller(object):
         raise Exception('Processor not present in the list')
 
     def isCorrectPath(self, path):
-        if path == '/gatewaySD' or path == '/gatewaySD/info':
+        if path == '/gatewaySD/auth' or path == '/gatewaySD/info':
             return True
         return False
 

@@ -87,7 +87,7 @@ $('#submit_button').click(function(){
          let json = JSON.stringify(object);
          console.log(json);
 
-         fetch("/gatewaySD", {
+         fetch("/gatewaySD/auth", {
      	    body: json,
      	    method: "POST"
      	}).then(function(response){

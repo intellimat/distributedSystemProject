@@ -15,37 +15,58 @@ class Controller(object):
         self.host, self.port = self.csocket.getpeername()
 
     def parseRequest(self):
-        msgFromClient = io.readMessage(self.csocket)
-        print(f"\nServer received the message:\n\n\n '{msgFromClient}' \n\n\nfrom {self.host} on port {self.port}\n\n\n")
-
-        path = self.getPath(msgFromClient)
-        print(f'\n\nPath of the request is {path}\n\n')
-
+        self.manageClientInteraction()
+        '''
         if not self.isCorrectPath(path):
             pass
 
-        elif path == '/gatewaySD/info':
+        elif resourcePath == '/info':
             self.handleInformationRequest()
 
-        elif path == '/gatewaySD/auth':
+        elif resourcePath == '/auth':
             self.managePayment(msgFromClient)
 
-        elif path == '/gatewaySD/status':
+        elif resourcePath == '/status':
             pass
 
-        elif path == '/gatewaySD/fl':
+        elif resourcePath == '/fl':
             pass
 
-        elif path == '/gatewaySD/ul':
+        elif resourcePath == '/ul':
             pass
         else:
             pass
+            '''
 
-    def connectToProcessor(self, IP, PORT):
-        # AF_INET means IPv4, SCOCK_STREM means TCP
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((IP, PORT))
-        return s
+    def manageClientInteraction(self):
+        msgFromClient = io.readMessage(self.csocket)
+        if msgFromClient == '<ENQ>':
+            io.writeMessage(self.csocket, '<ACK>')
+            msgFromClient = io.readMessage(self.csocket)
+            counter=1
+            lrc_correct = sm.isLRC_ok(msgFromClient)
+            while (not lrc_correct) and counter<4:
+                counter+=1
+                io.writeMessage(self.csocket, '<NACK>')
+                msgFromClient = io.readMessage(self.csocket)
+                lrc_correct = sm.isLRC_ok(msgFromClient)
+            if lrc_correct:
+                io.writeMessage(self.csocket, '<ACK>')
+                answer = 'ok'
+                lrc_answer = sm.getLRCvalueFromString(answer)
+                io.writeMessage(self.csocket, f'<STX>{answer}<ETX>{lrc_answer}')
+                msgFromClient = io.readMessage(self.csocket)
+                counter = 1
+                while msgFromClient!='<ACK>' and counter<4:
+                    counter+=1
+                    io.writeMessage(self.csocket, f'<STX>{answer}<ETX>{str(lrc_answer)}')
+                    msgFromClient = io.readMessage(self.csocket)
+
+
+        else:
+            print('\nRAMO ELSE\n')
+            io.writeMessage(self.csocket,'<NACK>')
+            io.writeMessage(self.csockeet, '<EOT>')
 
     def getProcessorsInfo(self):
         try:
@@ -121,15 +142,12 @@ class Controller(object):
         path = clientMsg.split()[1]
         return path
 
-    def getJSONobjectFromString(self, s):
-        return json.loads(s)
-
     def getProcessor(self, msgFromClient):
         basicPath = pathlib.Path.cwd()
         filePath = pathlib.Path(basicPath, 'processorsMappingAndAddresses', 'Bines.txt')
         f = io.readFile(filePath)
         body = msgFromClient.split('\r\n\r\n')[1]
-        data = self.getJSONobjectFromString(body)
+        data = sm.getJSONobjectFromString(body)
         cardNumber = data.get("cardNumber")
         firstDigit = cardNumber[0]
 
@@ -150,66 +168,14 @@ class Controller(object):
         ''' here we gotta call checkData '''
         processorNumber = self.getProcessor(msgFromClient)
         address = self.findAddress(processorNumber)
-        p_socket = self.establishConnection(address)
-        self.sendDataToProcessor(p_socket, msgFromClient)
-        response = io.readMessage(p_socket)
-        counter = 1
-        while response != '<ACK>' and counter<3:
-            counter += 1
-            self.sendDataToProcessor(p_socket, msgFromClient)
-            response = io.readMessage(p_socket)
-        if response != '<ACK>':
-            raise Exception('The processor cannot receive data correctly.  ')
-        msgFromProc = io.readMessage(p_socket) #the answer
-        if not self.isLRC_ok(msgFromProc):
-            pass
-        else:
-            io.writeMessage(p_socket, '<ACK>')
-            io.writeMessage(p_socket, '<EOT>')
-            io.closeConnection(p_socket)
-            self.sendResponseToWebServer(param)
+        p_socket = io.establishConnection(address) #raise exception
 
-    def isLRC_ok(self, msgFromProc):
-        v = msgFromProc.split('<STX>')
-        vu = v[1].split('<ETX>')
-        answer = vu[0]
-        lrc_fromProc = int(vu[1])
-        calculated_lrc = sm.getLRCvalueFromString(answer)
-        return calculated_lrc == lrc_fromProc
+
+        io.closeConnection(p_socket)
+        self.sendResponseToWebServer(param)
 
     def sendResponseToWebServer(self,parm):
         pass
-
-
-    def establishConnection(self,address):
-        p_IP = address[0]
-        p_PORT = address[1]
-        p_socket = self.connectToProcessor(p_IP, p_PORT)
-        io.writeMessage(p_socket,'<ENQ>')
-        response = io.readMessage(p_socket)
-        counter = 1
-        while response != '<ACK>' and counter<3:
-            counter += 1
-            io.writeMessage(p_socket,'<ENQ>')
-            response = io.readMessage(p_socket)
-        if response != '<ACK>':
-            raise Exception('Impossible to establish connection with the selected processor. ')
-        print('Connection to processor established. ')
-        return p_socket
-
-    def sendDataToProcessor(self, msgFromClient):
-        body = msgFromClient.split('\r\n\r\n')[1]
-        data = self.getJSONobjectFromString(body)
-        name = data.get('name'),
-        surname = data.get('surname'),
-        cardNumber = data.get('cardNumber')
-        cvv = data.get('cvv')
-        expDate = data.get('expDate')
-        amount = data.get('amount')
-        s = f'1#{name} {surname}#{cardNumber}#{amount}#{cvv}#{expDate}'
-        lrc = sm.getLRCvalueFromString(s)
-        s = '<STX>' + s + '<ETX>' + lrc
-        io.writeMessage(p_socket, s)
 
     def fromatAuthMessage(self):
         pass
@@ -243,7 +209,7 @@ class Controller(object):
 
     def isCorrectData(self, msgFromClient):
         body = msgFromClient.split('\r\n\r\n')[1]
-        data = self.getJSONobjectFromString(body)
+        data = sm.getJSONobjectFromString(body)
         for field in data:  #check no empty fields
             if len(field) < 1:
                 return False

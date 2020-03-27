@@ -25,16 +25,16 @@ threads = []
 
 while True:
     s.listen()
-    print('\nServer is listening for new connections')
+    print('\nServer is listening for new connections.\n')
     clientsocket, address = s.accept()
     print(f"\nConnection from {address} has been established!")
-    print(f"Creating a thread to manage this connection")
+    print(f"Creating a thread to manage this connection.\n")
     newThread = threadServer(clientsocket)
     newThread.start()
     threads.append(newThread)
 
     threads = [t for t in threads if t.is_alive()]
-    print(f"\nNumber of threads alive: {len(threads)}")
+    print(f"\nNumber of threads alive: {len(threads)}\n")
 
 #for t in threads:
 #    t.join()

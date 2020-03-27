@@ -1,3 +1,4 @@
+import json
 def calculate_LRC(data):
     lrc = 0x00
     for element in data:
@@ -12,6 +13,13 @@ def getLRCvalueFromString(s): #s is the string
     l = [ord(i) for i in s]
     return calculate_LRC(l)
 
-s = input('Insert a string: \n')
-valueLRC = getLRCvalueFromString(s)
-print(f'LRC value is: {valueLRC}')
+def isLRC_ok(msgFromProc):
+    v = msgFromProc.split('<STX>')
+    vu = v[1].split('<ETX>')
+    answer = vu[0]
+    lrc_fromProc = int(vu[1])
+    calculated_lrc = getLRCvalueFromString(answer)
+    return calculated_lrc == lrc_fromProc
+
+def getJSONobjectFromString(s):
+    return json.loads(s)

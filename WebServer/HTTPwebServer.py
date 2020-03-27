@@ -10,7 +10,7 @@ class threadServer(Thread):
         self.csocket = csocket
         self.host, self.port = self.csocket.getpeername()
         self.controller = controllerHTTPwebServer.Controller(csocket)
-        print (f'New server socket thread created')
+        print (f'New server socket thread created.')
 
 
     def run(self): #code run by each thread
@@ -25,16 +25,16 @@ threads = []
 
 while True:
     s.listen()
-    print('\nServer is listening for new connections')
+    print('\nServer is listening for new connections.\n')
     clientsocket, address = s.accept()
-    print(f"\nConnection from {address} has been established!")
-    print(f"Creating a thread to manage this connection")
+    print(f"\nConnection from {address} has been established!\n")
+    print(f"Creating a thread to manage this connection.\n")
     newThread = threadServer(clientsocket)
     newThread.start()
     threads.append(newThread)
 
     threads = [t for t in threads if t.is_alive()]
-    print(f"\nNumber of threads alive: {len(threads)}")
+    print(f"\nNumber of threads alive: {len(threads)}\n")
 
 #for t in threads:
 #    t.join()

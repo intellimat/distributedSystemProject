@@ -52,63 +52,64 @@
             <label for="expDate">Amount (currency euro €)</label>
             <input type="number" class="form-control" id="amount">
           </div>
-        <button class="btn btn-primary btn-lg" id="submit_button">PAY</button>
+        <button type='button' class="btn btn-primary btn-lg" id="submit_button">PAY</button>
     </form>
 
 
 
-<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+<script src="https://code.jquery.com/jquery-3.4.1.js" integrity="sha256-WpOohJOqMqqyKL9FccASB9O0KwACQJpFTUBLTYOVvVU=" crossorigin="anonymous"></script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
 
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
 
 <script>
+$( document ).ready(function() {
+    $('#submit_button').click(function(){
+             let name = document.getElementById('name').value;
+             let surname = document.getElementById('surname').value;
+             let cardNumber = document.getElementById('cardNumber').value;
+             let cvv = document.getElementById('cvv').value;
+             let expDate = document.getElementById('expDate').value;
+             let amount = document.getElementById('amount').value;
 
-$('#submit_button').click(function(){
-         let name = document.getElementById('name').value;
-         let surname = document.getElementById('surname').value;
-         let cardNumber = document.getElementById('cardNumber').value;
-         let cvv = document.getElementById('cvv').value;
-         let expDate = document.getElementById('expDate').value;
-         let amount = document.getElementById('amount').value;
+             // console.log(name + ' ' + surname + ' ' + email + ' ' + username + ' ' + password + ' ' + role);
 
-         // console.log(name + ' ' + surname + ' ' + email + ' ' + username + ' ' + password + ' ' + role);
+             let object = {
+                 name: name,
+                 surname: surname,
+                 cardNumber: cardNumber,
+                 cvv: cvv,
+                 expDate: expDate,
+                 amount: amount
+             }
 
-         let object = {
-             name: name,
-             surname: surname,
-             cardNumber: cardNumber,
-             cvv: cvv,
-             expDate: expDate
-             amount: amount
-         }
+             let json = JSON.stringify(object);
+             console.log(json);
 
-         let json = JSON.stringify(object);
-         console.log(json);
+             $.ajax({
+                 type: "POST",
+                 url: 'gatewaySD/auth',
+                 data: json,
+                 contentType: "application/json; charset=utf-8",
+                 dataType: "html",
+                 success: function (data) {
+                     console.log('SUCCESS')
+                     $('html').empty();
+                     document.write(data);
+                 },
+                 error: function (xhr, ajaxOptions, thrownError) {
+                     console.log('xHR: ' + xhr);
+                     console.log('ajaxOption: ' + ajaxOptions);
+                     console.log('thrownError: ' + thrownError);
+                 }
+                });
 
-         fetch("/gatewaySD/auth", {
-     	    body: json,
-     	    method: "POST"
-     	}).then(function(response){
-            if(response.ok) {
-                if (response.status == 200) {
-                    console.log('response status 200')
-                    return response;
-                }
-                else if (response.status == 401){
-                    throw new Error("401");
-                }
-            }
-            throw new Error('400');
-     	}).then(function(response){
-            alert('POST request correctly received. ');
-        }).catch(function(error){
-            console.log(error);
-            alert("Error catched ");
-     	});
 
- });
+     });
+
+});
+
 
 
 </script>

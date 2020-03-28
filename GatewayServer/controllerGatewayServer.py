@@ -37,6 +37,32 @@ class Controller(object):
         else:
             pass
             '''
+    def manageAuthRequest(self):
+        #here we gotta put the logic
+        outcome = 'ok'
+        if outcome == 'ok':
+            html_page = io.readFile(os.path.curdir + '/authResponse.html')
+            v = html_page.split('<div id="outcome">')
+            html_page = v[0] + '<div id="outcome"> Operation accepted. ' + v[1]
+            lrc_answer = sm.getLRCvalueFromString(html_page)
+            io.writeMessage(self.csocket, f'<STX>{html_page}<ETX>{lrc_answer}')
+        else:
+            html_page = io.readFile(curdir + '/authResponse.html')
+            v = html_page.split('<div id="outcome">')
+            html_page = v[0] + '<div id="outcome"> Operation refused. ' + v[1]
+            lrc_answer = sm.getLRCvalueFromString(html_page)
+            io.writeMessage(self.csocket, f'<STX>{html_page}<ETX>{lrc_answer}')
+        msgFromClient = io.readMessage(self.csocket)
+        counter = 1
+        while msgFromClient!='<ACK>' and counter<4:
+            counter+=1
+            io.writeMessage(self.csocket, f'<STX>{html_page}<ETX>{str(lrc_answer)}')
+            msgFromClient = io.readMessage(self.csocket)
+        msgFromClient = io.readMessage(self.csocket) #expecting the <EOT> from the client
+
+    def readOperationCode(self,msgFromClient):
+        v = msgFromClient.split('<STX>')
+        return int(v[1][0])
 
     def manageClientInteraction(self):
         msgFromClient = io.readMessage(self.csocket)
@@ -52,15 +78,11 @@ class Controller(object):
                 lrc_correct = sm.isLRC_ok(msgFromClient)
             if lrc_correct:
                 io.writeMessage(self.csocket, '<ACK>')
-                answer = 'ok'
-                lrc_answer = sm.getLRCvalueFromString(answer)
-                io.writeMessage(self.csocket, f'<STX>{answer}<ETX>{lrc_answer}')
-                msgFromClient = io.readMessage(self.csocket)
-                counter = 1
-                while msgFromClient!='<ACK>' and counter<4:
-                    counter+=1
-                    io.writeMessage(self.csocket, f'<STX>{answer}<ETX>{str(lrc_answer)}')
-                    msgFromClient = io.readMessage(self.csocket)
+                op_code = self.readOperationCode(msgFromClient)
+                if(op_code == 1):
+                    self.manageAuthRequest()
+                else:
+                    pass
 
 
         else:

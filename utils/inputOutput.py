@@ -13,7 +13,8 @@ def readFile(path): #reads a file stored in a directory specified by the path ar
     f = open(path)
     content = f.read()
     f.close()
-    print(f'\nRead file:\n{content}\n\n')
+    if len(content) < 100:
+        print(f'\nRead file:\n{content}\n\n')
     return content
 
 def writeMessage(sock, data): #writes a response to the client

@@ -128,8 +128,8 @@ class Controller(object):
             response = io.readMessage(self.gs)
         if response != '<ACK>':
             raise Exception('The addressee cannot receive data correctly.  ')
-        msgFromProc = io.readMessage(self.gs) #the answer
-        if not sm.isLRC_ok(msgFromProc):
+        msgFromGateway = io.readMessage(self.gs) #the answer
+        if not sm.isLRC_ok(msgFromGateway):
             print('\nThe LRC check returned false for four times.  \n')
             io.writeMessage('<NACK>')
             io.closeConnection(self.gs)
@@ -137,6 +137,19 @@ class Controller(object):
             io.writeMessage(self.gs, '<ACK>')
             io.writeMessage(self.gs, '<EOT>')
             io.closeConnection(self.gs)
+            self.sendHTMLresponseToClient(msgFromGateway)
+
+    def sendHTMLresponseToClient(self, msgFromGateway):
+        html_page = msgFromGateway.split('<STX>')[1].split('<ETX>')[0]
+        pageLength = len(html_page)
+        s = io.setCode('HTTP/1.1', 200)
+        s = io.setMessageAnswer(s, 'OK')
+        s = io.setContentLength(s, pageLength)
+        s = io.setContentType(s, 'text/html')
+        s = io.setConnection(s, 'Close')
+        s = s + f'\n\n{html_page}'
+        print(f"Message to send to the client (user in this case) as response: \n\n HTML page")
+        io.writeMessage(self.csocket, s)
 
 
     def handleGatewayRequest(self, msgFromClient):

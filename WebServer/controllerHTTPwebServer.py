@@ -20,6 +20,7 @@ class Controller(object):
         if not(self.checkMethod(msgFromClient)):
             self.sendMethodNotAllowed()
             io.closeConnection(self.csocket)
+
         elif not self.isPathCorrect(msgFromClient):
             self.sendNotExistingPath()
             io.closeConnection(self.csocket)
@@ -42,9 +43,20 @@ class Controller(object):
             io.closeConnection(self.csocket)
 
     def isPathCorrect(self, msgFromClient):
-        path = self.getPath(msgFromClient)
-        if path == '' or path == '/' or path == '/index.html' or path == '/gatewaySD' or path[0:11] == '/gatewaySD/':
-            return True
+        accessiblePaths = { '0': '/favicon.ico',
+                            '1': '',
+                            '2': '/',
+                            '3': '/index.html',
+                            '4': '/gatewaySD/index',
+                            '5': '/gatewaySD/auth',
+                            '6': '/gatewaySD/status',
+                            '7': '/gatewaySD/fl',
+                            '8': '/gatewaySD/ul'}
+
+        path = self.getPath(msgFromClient).split('?')[0]
+        for n in accessiblePaths:
+            if accessiblePaths.get(n) == path:
+                return True
         return False
 
 
@@ -95,7 +107,9 @@ class Controller(object):
         io.writeMessage(self.csocket, s)
 
     def isHomepageRequest(self, clientMsg):
-        return clientMsg[0:3] == 'GET' and clientMsg[4] == '/'   #we gotta write also the case of /index.html
+        httpMethod = clientMsg.split()[0]
+        path = self.getPath(clientMsg)
+        return (httpMethod == 'GET') and (path == '/' or path == '/index.html')
 
     def isFaviconRequest(self, msgFromClient):
         print('Checking if is favicon request. \n')
@@ -196,8 +210,18 @@ class Controller(object):
         try:
             self.gs = io.establishConnection(('localhost', 12000)) #throws exception
             print('\nConnected to the gateway.\n')
-            if self.getPath(msgFromClient) == '/gatewaySD/auth':
+            path = self.getPath(msgFromClient).split('?')
+
+            if path == '/gatewaySD/auth':
                 self.manageAuthRequest(msgFromClient)
+            elif path == '/gatewaySD/index':
+                pass
+            elif path[:17] == '/gatewaySD/status':
+                pass
+            elif path[:13] == '/gatewaySD/fl':
+                pass
+            elif path[:13] == '/gatewaySD/ul':
+                pass
             else:
                 pass
         except socket.error as exc:

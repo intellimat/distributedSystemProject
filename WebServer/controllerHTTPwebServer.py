@@ -20,6 +20,9 @@ class Controller(object):
         if not(self.checkMethod(msgFromClient)):
             self.sendMethodNotAllowed()
             io.closeConnection(self.csocket)
+        elif not self.isPathCorrect(msgFromClient):
+            self.sendNotExistingPath()
+            io.closeConnection(self.csocket)
 
         elif self.isFaviconRequest(msgFromClient):
             self.sendFavicon()
@@ -38,16 +41,51 @@ class Controller(object):
             self.sendBadRequest()
             io.closeConnection(self.csocket)
 
-    def checkMethod(self, clientMsg):
-        httpMethod = clientMsg.split()[0]
-        if httpMethod == 'GET' or httpMethod == 'POST':
+    def isPathCorrect(self, msgFromClient):
+        path = self.getPath(msgFromClient)
+        if path == '' or path == '/' or path == '/index.html' or path == '/gatewaySD' or path[0:11] == '/gatewaySD/':
             return True
         return False
 
+
+    def sendNotExistingPath(self):
+        html_page = io.readFile(os.path.curdir + '/error.html')
+        newContent = '''<body>\n<div id="msg_instruction"> 404 Not Found </div>
+                        <div id="details"> The path specified in the HTTP request is does not exist.
+                                             </div>'''
+        v = html_page.split('<body>')
+        updatedHTML = v[0] + newContent + v[1]
+        page_length = len(updatedHTML)
+        s = io.setCode('HTTP/1.1', 404)
+        s = io.setMessageAnswer(s, 'Not Found')
+        s = io.setContentLength(s, page_length)
+        s = io.setContentType(s, 'text/html')
+        s = io.setConnection(s, 'Close\n\n')
+        s = s + updatedHTML
+        io.writeMessage(self.csocket, s)
+
+    def checkMethod(self, clientMsg):
+        if len(clientMsg) > 0:
+            httpMethod = clientMsg.split()[0]
+            if httpMethod == 'GET' or httpMethod == 'POST':
+                return True
+            return False
+
     def sendMethodNotAllowed(self):
+        html_page = io.readFile(os.path.curdir + '/error.html')
+        newContent = '''<body>\n<div id="msg_instruction"> 405 Method Not Allowed </div>
+                        <div id="details"> The method specified in the HTTP requested is not allowed.
+                                            the only two methods supported are GET and POST. </div>'''
+        v = html_page.split('<body>')
+        updatedHTML = v[0] + newContent + v[1]
+        page_length = len(updatedHTML)
+
         s = io.setCode('HTTP/1.1', 405)
-        s = io.setMessageAnswer(s, 'Method Not Allowed\n')
-        s = io.setConnection(s, 'Close')
+        s = io.setMessageAnswer(s, 'Method Not Allowed')
+        s = io.setContentLength(s, page_length)
+        s = io.setContentType(s, 'text/html')
+        s = io.setConnection(s, 'Close\n\n')
+        s = s + updatedHTML
         io.writeMessage(self.csocket, s)
 
     def sendBadRequest(self):
@@ -73,9 +111,12 @@ class Controller(object):
         return basicPath == 'gatewaySD'
 
     def getPath(self,clientMsg):
-        path = clientMsg.split()[1]
-        print(f"The path is: {path}\n")
-        return path
+        if len(clientMsg) > 0:
+            path = clientMsg.split()[1]
+            print(f"The path is: {path}\n")
+            return path
+        else:
+            return ''
 
     def sendHomepage(self):
         page = io.readFile(os.curdir + '/index.html')
@@ -87,7 +128,6 @@ class Controller(object):
         s = io.setContentType(s, 'text/html')
         s = io.setConnection(s, 'Close')
         s = s + f'\n\n{page}'
-        print(f"Message to send to the client (user in this case) as response: \n\n HTML page")
         io.writeMessage(self.csocket, s)
 
     def sendFavicon(self):
@@ -162,10 +202,21 @@ class Controller(object):
                 pass
         except socket.error as exc:
             print('Connection to gateway failed.\n')
+            print(f'Exception: {exc}')
+            ''''''
+            html_page = io.readFile(os.path.curdir + '/error.html')
+            newContent = '''<body>\n<div id="msg_instruction"> 500 Internal Server Error </div>
+                            <div id="details"> The gateway serve cannot be reached.
+                                                Try again later. </div>'''
+            v = html_page.split('<body>')
+            updatedHTML = v[0] + newContent + v[1]
+            page_length = len(updatedHTML)
+
             s = io.setCode('HTTP/1.1', 500)
             s = io.setMessageAnswer(s, 'Internal Server Error')
+            s = io.setContentLength(s, page_length)
+            s = io.setContentType(s, 'text/html')
             s = io.setConnection(s, 'Close\n\n')
-            s = s + 'Socket error: Connection to the gateway failed. \n'
+            s = s + updatedHTML
             io.writeMessage(self.csocket, s)
-            print(f'Sent \n{s} to the client after POST request\n')
             io.closeConnection(self.csocket)

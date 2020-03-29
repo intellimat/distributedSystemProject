@@ -39,7 +39,7 @@ class Controller(object):
             '''
     def manageAuthRequest(self):
         #here we gotta put the logic
-        outcome = 'ok'
+        outcome = 'ko'
         if outcome == 'ok':
             html_page = io.readFile(os.path.curdir + '/authResponse.html')
             v = html_page.split('<div id="outcome">')
@@ -47,7 +47,7 @@ class Controller(object):
             lrc_answer = sm.getLRCvalueFromString(html_page)
             io.writeMessage(self.csocket, f'<STX>{html_page}<ETX>{lrc_answer}')
         else:
-            html_page = io.readFile(curdir + '/authResponse.html')
+            html_page = io.readFile(os.path.curdir + '/authResponse.html')
             v = html_page.split('<div id="outcome">')
             html_page = v[0] + '<div id="outcome"> Operation refused. ' + v[1]
             lrc_answer = sm.getLRCvalueFromString(html_page)

@@ -21,5 +21,11 @@ def isLRC_ok(msgFromProc):
     calculated_lrc = getLRCvalueFromString(answer)
     return calculated_lrc == lrc_fromProc
 
-def getJSONobjectFromString(s):
-    return json.loads(s)
+def getQueryStringParameters(url): #returns a dictionary with all the parameters -> key : value
+    v = url.split('?')
+    v = v[1].split('&')
+    d = {}
+    for i in v:
+        u = i.split('=')
+        d[u[0]] = u[1]
+    return d

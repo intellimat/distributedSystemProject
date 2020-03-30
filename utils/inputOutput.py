@@ -18,8 +18,9 @@ def readFile(path): #reads a file stored in a directory specified by the path ar
     return content
 
 def writeMessage(sock, data): #writes a response to the client
+    host, port = sock.getpeername()
     sock.send(bytes(data,"utf-8"))
-    print(f'Sent:\n{data}\n')
+    print(f'Sent:\n{data} to {host} on port {port}\n')
 
 def setContentLength(msg, msgLength):
     return msg + f'\nContent-Length: {msgLength}'

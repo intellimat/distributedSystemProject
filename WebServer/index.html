@@ -75,23 +75,12 @@ $( document ).ready(function() {
 
              // console.log(name + ' ' + surname + ' ' + email + ' ' + username + ' ' + password + ' ' + role);
 
-             let object = {
-                 name: name,
-                 surname: surname,
-                 cardNumber: cardNumber,
-                 cvv: cvv,
-                 expDate: expDate,
-                 amount: amount
-             }
-
-             let json = JSON.stringify(object);
-             console.log(json);
+             let completeName = name + surname
+             let url = `gatewaySD/auth?name=${completeName}&cardNumber=${cardNumber}&cvv=${cvv}&expDate=${expDate}&amount=${amount}`
 
              $.ajax({
-                 type: "POST",
-                 url: 'gatewaySD/auth',
-                 data: json,
-                 contentType: "application/json; charset=utf-8",
+                 type: "GET",
+                 url: url,
                  dataType: "html",
                  success: function (data) {
                      console.log('SUCCESS')

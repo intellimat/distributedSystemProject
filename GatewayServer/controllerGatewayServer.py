@@ -60,29 +60,25 @@ class Controller(object):
             msgFromClient = io.readMessage(self.csocket)
         msgFromClient = io.readMessage(self.csocket) #expecting the <EOT> from the client
 
-    def readOperationCode(self,msgFromClient):
-        v = msgFromClient.split('<STX>')
-        return int(v[1][0])
 
     def manageClientInteraction(self):
         msgFromClient = io.readMessage(self.csocket)
         if msgFromClient == '<ENQ>':
             io.writeMessage(self.csocket, '<ACK>')
             msgFromClient = io.readMessage(self.csocket)
-            counter=1
-            lrc_correct = sm.isLRC_ok(msgFromClient)
-            while (not lrc_correct) and counter<4:
-                counter+=1
-                io.writeMessage(self.csocket, '<NACK>')
-                msgFromClient = io.readMessage(self.csocket)
+            if msgFromClient == '<EOT>':
+                print('Connection ended by the WebServe without sending data. ')
+            else:
+                counter=1
                 lrc_correct = sm.isLRC_ok(msgFromClient)
-            if lrc_correct:
-                io.writeMessage(self.csocket, '<ACK>')
-                op_code = self.readOperationCode(msgFromClient)
-                if(op_code == 1):
+                while (not lrc_correct) and counter<4:
+                    counter+=1
+                    io.writeMessage(self.csocket, '<NACK>')
+                    msgFromClient = io.readMessage(self.csocket)
+                    lrc_correct = sm.isLRC_ok(msgFromClient)
+                if lrc_correct:
+                    io.writeMessage(self.csocket, '<ACK>')
                     self.manageAuthRequest()
-                else:
-                    pass
 
 
         else:
@@ -157,9 +153,6 @@ class Controller(object):
         response_msg = 'HTTP/1.1 400 Bad Request\n'
         io.writeMessage(self.csocket, response_msg)
 
-    def isPOSTRequest(self,clientMsg):
-        return clientMsg[0:4] == 'POST'
-
     def getPath(self,clientMsg):
         path = clientMsg.split()[1]
         return path
@@ -169,7 +162,7 @@ class Controller(object):
         filePath = pathlib.Path(basicPath, 'processorsMappingAndAddresses', 'Bines.txt')
         f = io.readFile(filePath)
         body = msgFromClient.split('\r\n\r\n')[1]
-        data = sm.getJSONobjectFromString(body)
+        #data = sm.getJSONobjectFromString(body)
         cardNumber = data.get("cardNumber")
         firstDigit = cardNumber[0]
 
@@ -230,12 +223,6 @@ class Controller(object):
         return False
 
     def isCorrectData(self, msgFromClient):
-        body = msgFromClient.split('\r\n\r\n')[1]
-        data = sm.getJSONobjectFromString(body)
-        for field in data:  #check no empty fields
-            if len(field) < 1:
-                return False
-
         if data.get("cardNumber") != 16:
             return False
 

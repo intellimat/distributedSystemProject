@@ -79,7 +79,7 @@ class Controller(object):
     def checkMethod(self, clientMsg):
         if len(clientMsg) > 0:
             httpMethod = clientMsg.split()[0]
-            if httpMethod == 'GET' or httpMethod == 'POST':
+            if httpMethod == 'GET':
                 return True
             return False
 
@@ -87,7 +87,7 @@ class Controller(object):
         html_page = io.readFile(os.path.curdir + '/error.html')
         newContent = '''<body>\n<div id="msg_instruction"> 405 Method Not Allowed </div>
                         <div id="details"> The method specified in the HTTP requested is not allowed.
-                                            the only two methods supported are GET and POST. </div>'''
+                                            the only method supported is GET </div>'''
         v = html_page.split('<body>')
         updatedHTML = v[0] + newContent + v[1]
         page_length = len(updatedHTML)
@@ -101,10 +101,24 @@ class Controller(object):
         io.writeMessage(self.csocket, s)
 
     def sendBadRequest(self):
+        html_page = io.readFile(os.path.curdir + '/error.html')
+        newContent = '''<body>\n<div id="msg_instruction"> 400 Bad Request </div>
+                        <div id="details"> The server cannot process your request.
+                                             If it's an auth request, check that all the parameters:<br>
+                                             name, cardNumber, cvv, expDate and amount are present in the url.
+                                             </div>'''
+        v = html_page.split('<body>')
+        updatedHTML = v[0] + newContent + v[1]
+        page_length = len(updatedHTML)
+
         s = io.setCode('HTTP/1.1', 400)
-        s = io.setMessageAnswer(s, 'Bad Request\n')
-        s = io.setConnection(s, 'Close')
+        s = io.setMessageAnswer(s, 'Bad Request')
+        s = io.setContentLength(s, page_length)
+        s = io.setContentType(s, 'text/html')
+        s = io.setConnection(s, 'Close\n\n')
+        s = s + updatedHTML
         io.writeMessage(self.csocket, s)
+        io.closeConnection(self.csocket)
 
     def isHomepageRequest(self, clientMsg):
         httpMethod = clientMsg.split()[0]
@@ -157,41 +171,53 @@ class Controller(object):
         print(f"Message to send to the client as response: favicon ")
         io.writeMessage(self.csocket, s)
 
+    def isDataAuthCorrect(self, msgFromClient):
+        path = self.getPath(msgFromClient)
+        p = sm.getQueryStringParameters(path)
+        allParameters = 'name' in p and 'cardNumber' in p and 'cvv' in p and 'expDate' in p and 'amount' in p
+        if not allParameters:
+            return False
+        return True
+
     def sendDataAuth(self, sock, msgFromClient):
-        body = msgFromClient.split('\r\n\r\n')[1]
-        data = sm.getJSONobjectFromString(body)
-        name = data.get('name')
-        surname = data.get('surname')
-        cardNumber = data.get('cardNumber')
-        cvv = data.get('cvv')
-        expDate = data.get('expDate')
-        amount = data.get('amount')
-        completeName = name + surname
-        s = f'1#{completeName}#{cardNumber}#{amount}#{cvv}#{expDate}'
+        path = self.getPath(msgFromClient)
+        parameters = sm.getQueryStringParameters(path)
+        name = parameters.get('name')
+        cardNumber = parameters.get('cardNumber')
+        cvv = parameters.get('cvv')
+        expDate = parameters.get('expDate')
+        amount = parameters.get('amount')
+
+        s = f'{name}#{cardNumber}#{cvv}#{expDate}#{amount}'
         lrc = sm.getLRCvalueFromString(s)
         s = '<STX>' + s + '<ETX>' + str(lrc)
         io.writeMessage(sock, s)
 
     def manageAuthRequest(self, msgFromClient):
-        self.sendDataAuth(self.gs, msgFromClient)
-        response = io.readMessage(self.gs)
-        counter = 1
-        while response != '<ACK>' and counter<4:
-            counter += 1
+        if self.isDataAuthCorrect(msgFromClient):
             self.sendDataAuth(self.gs, msgFromClient)
             response = io.readMessage(self.gs)
-        if response != '<ACK>':
-            raise Exception('The addressee cannot receive data correctly.  ')
-        msgFromGateway = io.readMessage(self.gs) #the answer
-        if not sm.isLRC_ok(msgFromGateway):
-            print('\nThe LRC check returned false for four times.  \n')
-            io.writeMessage('<NACK>')
-            io.closeConnection(self.gs)
+            counter = 1
+            while response != '<ACK>' and counter<4:
+                counter += 1
+                self.sendDataAuth(self.gs, msgFromClient)
+                response = io.readMessage(self.gs)
+            if response != '<ACK>':
+                raise Exception('The addressee cannot receive data correctly.  ')
+            msgFromGateway = io.readMessage(self.gs) #the answer
+            if not sm.isLRC_ok(msgFromGateway):
+                print('\nThe LRC check returned false for four times.  \n')
+                io.writeMessage('<NACK>')
+                io.closeConnection(self.gs)
+            else:
+                io.writeMessage(self.gs, '<ACK>')
+                io.writeMessage(self.gs, '<EOT>')
+                io.closeConnection(self.gs)
+                self.sendHTMLresponseToClient(msgFromGateway)
         else:
-            io.writeMessage(self.gs, '<ACK>')
+            self.sendBadRequest()
             io.writeMessage(self.gs, '<EOT>')
             io.closeConnection(self.gs)
-            self.sendHTMLresponseToClient(msgFromGateway)
 
     def sendHTMLresponseToClient(self, msgFromGateway):
         html_page = msgFromGateway.split('<STX>')[1].split('<ETX>')[0]
@@ -210,7 +236,7 @@ class Controller(object):
         try:
             self.gs = io.establishConnection(('localhost', 12000)) #throws exception
             print('\nConnected to the gateway.\n')
-            path = self.getPath(msgFromClient).split('?')
+            path = self.getPath(msgFromClient).split('?')[0]
 
             if path == '/gatewaySD/auth':
                 self.manageAuthRequest(msgFromClient)

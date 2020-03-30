@@ -29,3 +29,28 @@ def getQueryStringParameters(url): #returns a dictionary with all the parameters
         u = i.split('=')
         d[u[0]] = u[1]
     return d
+
+def setContentLength(msg, msgLength):
+    return msg + f'\nContent-Length: {msgLength}'
+
+def setContentType(msg, type):
+    return msg + f'\nContent-Type: {type}'
+
+def setConnection(msg, connection):
+    return msg + f'\nConnection: {connection}'
+
+def setCode(msg, code):
+    return msg + f' {str(code)}'
+
+def setMessageAnswer(msg, answer):
+    return msg + f' {answer}'
+
+''' Helper methods for setting the message correctly according to the protocol '''
+def setResourcePath(path):
+    return f'ResourcePath:{path}'
+
+def setParameters(msg, params):
+    return msg + f'\nParameters[]:{params}'
+
+def setHeaders(msg, headers):
+    return msg + f'\nHeaders[]:{headers}'

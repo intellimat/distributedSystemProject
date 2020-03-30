@@ -68,11 +68,11 @@ class Controller(object):
         v = html_page.split('<body>')
         updatedHTML = v[0] + newContent + v[1]
         page_length = len(updatedHTML)
-        s = io.setCode('HTTP/1.1', 404)
-        s = io.setMessageAnswer(s, 'Not Found')
-        s = io.setContentLength(s, page_length)
-        s = io.setContentType(s, 'text/html')
-        s = io.setConnection(s, 'Close\n\n')
+        s = sm.setCode('HTTP/1.1', 404)
+        s = sm.setMessageAnswer(s, 'Not Found')
+        s = sm.setContentLength(s, page_length)
+        s = sm.setContentType(s, 'text/html')
+        s = sm.setConnection(s, 'Close\n\n')
         s = s + updatedHTML
         io.writeMessage(self.csocket, s)
 
@@ -92,11 +92,11 @@ class Controller(object):
         updatedHTML = v[0] + newContent + v[1]
         page_length = len(updatedHTML)
 
-        s = io.setCode('HTTP/1.1', 405)
-        s = io.setMessageAnswer(s, 'Method Not Allowed')
-        s = io.setContentLength(s, page_length)
-        s = io.setContentType(s, 'text/html')
-        s = io.setConnection(s, 'Close\n\n')
+        s = sm.setCode('HTTP/1.1', 405)
+        s = sm.setMessageAnswer(s, 'Method Not Allowed')
+        s = sm.setContentLength(s, page_length)
+        s = sm.setContentType(s, 'text/html')
+        s = sm.setConnection(s, 'Close\n\n')
         s = s + updatedHTML
         io.writeMessage(self.csocket, s)
 
@@ -111,11 +111,11 @@ class Controller(object):
         updatedHTML = v[0] + newContent + v[1]
         page_length = len(updatedHTML)
 
-        s = io.setCode('HTTP/1.1', 400)
-        s = io.setMessageAnswer(s, 'Bad Request')
-        s = io.setContentLength(s, page_length)
-        s = io.setContentType(s, 'text/html')
-        s = io.setConnection(s, 'Close\n\n')
+        s = sm.setCode('HTTP/1.1', 400)
+        s = sm.setMessageAnswer(s, 'Bad Request')
+        s = sm.setContentLength(s, page_length)
+        s = sm.setContentType(s, 'text/html')
+        s = sm.setConnection(s, 'Close\n\n')
         s = s + updatedHTML
         io.writeMessage(self.csocket, s)
         io.closeConnection(self.csocket)
@@ -150,11 +150,11 @@ class Controller(object):
         page = io.readFile(os.curdir + '/index.html')
         pageLength = len(page)
         # s is the response message
-        s = io.setCode('HTTP/1.1', 200)
-        s = io.setMessageAnswer(s, 'OK')
-        s = io.setContentLength(s, pageLength)
-        s = io.setContentType(s, 'text/html')
-        s = io.setConnection(s, 'Close')
+        s = sm.setCode('HTTP/1.1', 200)
+        s = sm.setMessageAnswer(s, 'OK')
+        s = sm.setContentLength(s, pageLength)
+        s = sm.setContentType(s, 'text/html')
+        s = sm.setConnection(s, 'Close')
         s = s + f'\n\n{page}'
         io.writeMessage(self.csocket, s)
 
@@ -162,11 +162,11 @@ class Controller(object):
         favicon = io.readFile(os.curdir + '/favicon.ico')
         faviconLength = len(favicon)
         # s is the response message
-        s = io.setCode('HTTP/1.1', 200)
-        s = io.setMessageAnswer(s, 'OK')
-        s = io.setContentLength(s, faviconLength)
-        s = io.setContentType(s, 'image/x-icon')
-        s = io.setConnection(s, 'Close')
+        s = sm.setCode('HTTP/1.1', 200)
+        s = sm.setMessageAnswer(s, 'OK')
+        s = sm.setContentLength(s, faviconLength)
+        s = sm.setContentType(s, 'image/x-icon')
+        s = sm.setConnection(s, 'Close')
         s = s + f'\n\n{favicon}'
         print(f"Message to send to the client as response: favicon ")
         io.writeMessage(self.csocket, s)
@@ -188,7 +188,9 @@ class Controller(object):
         expDate = parameters.get('expDate')
         amount = parameters.get('amount')
 
-        s = f'{name}#{cardNumber}#{cvv}#{expDate}#{amount}'
+        s = sm.setResourcePath('/auth')
+        params = f'{name}#{cardNumber}#{cvv}#{expDate}#{amount}'
+        s = sm.setParameters(s, params)
         lrc = sm.getLRCvalueFromString(s)
         s = '<STX>' + s + '<ETX>' + str(lrc)
         io.writeMessage(sock, s)
@@ -207,7 +209,7 @@ class Controller(object):
             msgFromGateway = io.readMessage(self.gs) #the answer
             if not sm.isLRC_ok(msgFromGateway):
                 print('\nThe LRC check returned false for four times.  \n')
-                io.writeMessage('<NACK>')
+                io.writeMessage(self.gs, '<NACK>')
                 io.closeConnection(self.gs)
             else:
                 io.writeMessage(self.gs, '<ACK>')
@@ -222,11 +224,11 @@ class Controller(object):
     def sendHTMLresponseToClient(self, msgFromGateway):
         html_page = msgFromGateway.split('<STX>')[1].split('<ETX>')[0]
         pageLength = len(html_page)
-        s = io.setCode('HTTP/1.1', 200)
-        s = io.setMessageAnswer(s, 'OK')
-        s = io.setContentLength(s, pageLength)
-        s = io.setContentType(s, 'text/html')
-        s = io.setConnection(s, 'Close')
+        s = sm.setCode('HTTP/1.1', 200)
+        s = sm.setMessageAnswer(s, 'OK')
+        s = sm.setContentLength(s, pageLength)
+        s = sm.setContentType(s, 'text/html')
+        s = sm.setConnection(s, 'Close')
         s = s + f'\n\n{html_page}'
         print(f"Message to send to the client (user in this case) as response: \n\n HTML page")
         io.writeMessage(self.csocket, s)
@@ -262,11 +264,11 @@ class Controller(object):
             updatedHTML = v[0] + newContent + v[1]
             page_length = len(updatedHTML)
 
-            s = io.setCode('HTTP/1.1', 500)
-            s = io.setMessageAnswer(s, 'Internal Server Error')
-            s = io.setContentLength(s, page_length)
-            s = io.setContentType(s, 'text/html')
-            s = io.setConnection(s, 'Close\n\n')
+            s = sm.setCode('HTTP/1.1', 500)
+            s = sm.setMessageAnswer(s, 'Internal Server Error')
+            s = sm.setContentLength(s, page_length)
+            s = sm.setContentType(s, 'text/html')
+            s = sm.setConnection(s, 'Close\n\n')
             s = s + updatedHTML
             io.writeMessage(self.csocket, s)
             io.closeConnection(self.csocket)

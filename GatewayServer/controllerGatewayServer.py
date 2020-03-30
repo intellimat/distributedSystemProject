@@ -37,28 +37,65 @@ class Controller(object):
         else:
             pass
             '''
-    def manageAuthRequest(self):
-        #here we gotta put the logic
-        outcome = 'ko'
-        if outcome == 'ok':
-            html_page = io.readFile(os.path.curdir + '/authResponse.html')
-            v = html_page.split('<div id="outcome">')
-            html_page = v[0] + '<div id="outcome"> Operation accepted. ' + v[1]
-            lrc_answer = sm.getLRCvalueFromString(html_page)
-            io.writeMessage(self.csocket, f'<STX>{html_page}<ETX>{lrc_answer}')
-        else:
-            html_page = io.readFile(os.path.curdir + '/authResponse.html')
-            v = html_page.split('<div id="outcome">')
-            html_page = v[0] + '<div id="outcome"> Operation refused. ' + v[1]
-            lrc_answer = sm.getLRCvalueFromString(html_page)
-            io.writeMessage(self.csocket, f'<STX>{html_page}<ETX>{lrc_answer}')
-        msgFromClient = io.readMessage(self.csocket)
-        counter = 1
-        while msgFromClient!='<ACK>' and counter<4:
-            counter+=1
-            io.writeMessage(self.csocket, f'<STX>{html_page}<ETX>{str(lrc_answer)}')
-            msgFromClient = io.readMessage(self.csocket)
-        msgFromClient = io.readMessage(self.csocket) #expecting the <EOT> from the client
+    def sendAuthToProcessor(self, p_socket, msgFromWs):
+        amount = msgFromWs.split('Parameters[]:')[1].split('\n')[0].split('#')[-1]
+
+        s = sm.setResourcePath('/auth')
+        params = f'{amount}'
+        s = sm.setParameters(s, params)
+        lrc = sm.getLRCvalueFromString(s)
+        s = '<STX>' + s + '<ETX>' + str(lrc)
+        io.writeMessage(p_socket, s)
+
+    def manageAuthRequest(self, msgFromWs):
+        processorNumber = self.getProcessor(msgFromWs)
+        address = self.findAddress(processorNumber)
+        try:
+            p_socket = io.establishConnection(address) #raises exception
+            self.sendAuthToProcessor(p_socket, msgFromWs)
+            procResponse = io.readMessage(p_socket)
+            counter = 1
+            while procResponse != '<ACK>' and counter<4:
+                counter += 1
+                self.sendAuthToProcessor(p_socket, msgFromWs)
+                procResponse = io.readMessage(p_socket)
+            if procResponse != '<ACK>':
+                raise Exception('The addressee cannot receive data correctly.  ')
+            else: #<ACK> for the data sent
+                procResponse = io.readMessage(p_socket) #the answer
+                counter = 1
+                while not sm.isLRC_ok(procResponse) and counter <4:
+                    counter += 1
+                    io.writeMessage(p_socket, '<NACK>')
+                    procResponse = io.readMessage(p_socket)
+                if sm.isLRC_ok(procResponse):
+                    io.writeMessage(p_socket, '<EOT>')
+                    io.closeConnection(p_socket)
+                    self.sendResponseToWebServer(procResponse)
+                else:
+                    io.readMessage(p_socket) #expecting <EOT>
+                    self.sendResponseToWebServer('Error in receiving the response from the processor. ')
+
+        except socket.error as exc:
+            print('Connection to the selected processor failed.\n')
+            print(f'Exception: {exc}')
+            ''''''
+            html_page = io.readFile(os.path.curdir + '/error.html')
+            newContent = '''<body>\n<div id="msg_instruction"> 500 Internal Server Error </div>
+                            <div id="details"> The gateway couldn't connect to the selected processor.
+                                                Try again later. </div>'''
+            v = html_page.split('<body>')
+            updatedHTML = v[0] + newContent + v[1]
+            page_length = len(updatedHTML)
+
+            s = sm.setCode('HTTP/1.1', 500)
+            s = sm.setMessageAnswer(s, 'Internal Server Error')
+            s = sm.setContentLength(s, page_length)
+            s = sm.setContentType(s, 'text/html')
+            s = sm.setConnection(s, 'Close\n\n')
+            s = s + updatedHTML
+            io.writeMessage(self.csocket, s)
+            io.closeConnection(self.csocket)
 
 
     def manageClientInteraction(self):
@@ -67,7 +104,7 @@ class Controller(object):
             io.writeMessage(self.csocket, '<ACK>')
             msgFromClient = io.readMessage(self.csocket)
             if msgFromClient == '<EOT>':
-                print('Connection ended by the WebServe without sending data. ')
+                print('Connection ended by the WebServer without sending data. ')
             else:
                 counter=1
                 lrc_correct = sm.isLRC_ok(msgFromClient)
@@ -78,11 +115,14 @@ class Controller(object):
                     lrc_correct = sm.isLRC_ok(msgFromClient)
                 if lrc_correct:
                     io.writeMessage(self.csocket, '<ACK>')
-                    self.manageAuthRequest()
-
+                    path = msgFromClient.split('ResourcePath:')[1].split('\n')[0]
+                    if path == '/auth':
+                        try:
+                            self.manageAuthRequest(msgFromClient)
+                        except Exception as exc:
+                            print(f'Exception: {exc}')
 
         else:
-            print('\nRAMO ELSE\n')
             io.writeMessage(self.csocket,'<NACK>')
             io.writeMessage(self.csockeet, '<EOT>')
 
@@ -117,9 +157,9 @@ class Controller(object):
         except socket.error as exc:
             print('Connection to a processor failed. ')
             '''
-            s = io.setCode('HTTP/1.1', 500)
-            s = io.setMessageAnswer(s, 'Internal Server Error')
-            s = io.setConnection(s, 'Close\n\n')
+            s = sm.setCode('HTTP/1.1', 500)
+            s = sm.setMessageAnswer(s, 'Internal Server Error')
+            s = sm.setConnection(s, 'Close\n\n')
             s = s + 'Socket error: Connection to a processor failed. \n'
             io.writeMessage(self.csocket, s)
             print(f'Sent \n{s} to the client (WebServer in this case) after request\n')
@@ -135,11 +175,11 @@ class Controller(object):
         updatedHTML = v[0] + data + v[1]
         pageLength = len(updatedHTML)
         # s is the response message
-        s = io.setCode('HTTP/1.1', 200)
-        s = io.setMessageAnswer(s, 'OK')
-        s = io.setContentLength(s, pageLength)
-        s = io.setContentType(s, 'text/html')
-        s = io.setConnection(s, 'Close')
+        s = sm.setCode('HTTP/1.1', 200)
+        s = sm.setMessageAnswer(s, 'OK')
+        s = sm.setContentLength(s, pageLength)
+        s = sm.setContentType(s, 'text/html')
+        s = sm.setConnection(s, 'Close')
         s = s + f'\n\n{updatedHTML}'
         print(f"Message to send to the client (WebServer in this case) as response: \n\n HTML page")
         io.writeMessage(self.csocket, s)
@@ -161,10 +201,8 @@ class Controller(object):
         basicPath = pathlib.Path.cwd()
         filePath = pathlib.Path(basicPath, 'processorsMappingAndAddresses', 'Bines.txt')
         f = io.readFile(filePath)
-        body = msgFromClient.split('\r\n\r\n')[1]
-        #data = sm.getJSONobjectFromString(body)
-        cardNumber = data.get("cardNumber")
-        firstDigit = cardNumber[0]
+        firstDigit = msgFromClient.split('Parameters[]:')[1].split('\n')[0].split('#')[1][0]
+        print(f'CARD FIRST DIGIT: {firstDigit}')
 
         buffer = []
         prec = ''
@@ -179,33 +217,33 @@ class Controller(object):
                 else:
                     prec = c
 
-    def managePayment(self, msgFromClient):
-        ''' here we gotta call checkData '''
-        processorNumber = self.getProcessor(msgFromClient)
-        address = self.findAddress(processorNumber)
-        p_socket = io.establishConnection(address) #raise exception
 
+    def sendResponseToWebServer(self, procResponse):
+        html_page = io.readFile(os.path.curdir + '/authResponse.html')
+        v = html_page.split('<div id="outcome">')
+        html_page = v[0] + '<div id="outcome">' + procResponse + v[1]
+        lrc_answer = sm.getLRCvalueFromString(html_page)
+        io.writeMessage(self.csocket, f'<STX>{html_page}<ETX>{lrc_answer}')
+        msgFromClient = io.readMessage(self.csocket)
+        counter = 1
+        while msgFromClient!='<ACK>' and counter<4:
+            counter+=1
+            io.writeMessage(self.csocket, f'<STX>{html_page}<ETX>{str(lrc_answer)}')
+            msgFromClient = io.readMessage(self.csocket)
+        msgFromClient = io.readMessage(self.csocket) #expecting the <EOT> from the client
 
-        io.closeConnection(p_socket)
-        self.sendResponseToWebServer(param)
-
-    def sendResponseToWebServer(self,parm):
-        pass
-
-    def fromatAuthMessage(self):
-        pass
 
     def findAddress(self, processor):
+        print(f'Getting address of processor: {processor}')
         basicPath = pathlib.Path.cwd()
         filePath = pathlib.Path(basicPath, 'processorsMappingAndAddresses', 'Procesadores.txt')
         f = io.readFile(filePath)
-        print(f'\nFILE LOADED IS:\n{f}')
         buffer = []
         for c in f:
-            print(f'Current buffer is: {buffer}\n')
+            #print(f'Current buffer is: {buffer}\n')
             if c != '\n':
                 buffer.append(c)
-            elif int(buffer[0]) == processor:
+            elif buffer[0] == processor:
                 s = ''.join(buffer)
                 print(f'\nAddress: {s}\n')
                 v = s.split('#')

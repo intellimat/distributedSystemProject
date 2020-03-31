@@ -16,6 +16,13 @@ def readFile(path): #reads a file stored in a directory specified by the path ar
         print(f'\nRead file:\n{content}\n\n')
     return content
 
+def writeFile(path, content):
+    f = open(path, 'w')
+    f.write(content)
+    f.close()
+    print(f'Written file with this content:\n {content}')
+
+
 def writeMessage(sock, data): #writes a response to the client
     host, port = sock.getpeername()
     sock.send(bytes(data,"utf-8"))

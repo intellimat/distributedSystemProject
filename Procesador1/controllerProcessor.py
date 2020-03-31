@@ -64,6 +64,11 @@ class Controller(object):
         else: #<ACK> for the data sent
             io.readMessage(self.csocket) #expecting <EOT>
 
+    def getParameterValue(self,parameter): #parameter must be 'status', 'fl' or 'ul'
+        f = getProcParameters()
+        value = f.split(parameter + '=')[1].split('\n')[0]
+        return value
+
 
     def getProcParameters(self):
         basicPath = pathlib.Path.cwd()
@@ -75,12 +80,45 @@ class Controller(object):
         params = self.getProcParameters()
         io.writeMessage(self.csocket, params)
 
-    def setProcParameters(self, id, status, floor, upper):
-        pass
+    def setProcParameter(self, parameter):  #parameter is something like this 'status=OFF'
+        basicPath = pathlib.Path.cwd()
+        filePath = pathlib.Path(basicPath, 'config.txt')
+        f = io.readFile(filePath)
+        defParameter = parameter.split('=')[0]
+        v = f.split(defParameter)
+        before = v[0]
+        after = v[1].split('\n')[1]
+        middle = parameter + '\n'
+        s = before + middle + after
+        io.writeFile(filePath, s)
 
-    def isCorrectPath(self, path):
-        if path == '/info':
-            return True
+        '''
+        defParameter = parameter.split('=')[0]
+        if defParameter == 'id':
+            status = f'status={self.getParameterValue('status')}'
+            floor = f'floor={self.getParameterValue('floor')}'
+            upper =f'upper={self.getParameterValue('upper')}'
+            s = f'{parameter}\n{status}{floor}{upper}'
+            io.writeFile(filePath, s)
+
+        elif defParameter == 'status':
+            pass
+        elif defParameter == 'floor':
+            pass
+        elif defParameter == 'upper':
+            pass
+        '''
+
+    def isPathCorrect(self, msgFromClient):
+        accessiblePaths = { '0': '/auth',
+                            '1': '/status',
+                            '2': '/fl',
+                            '3': '/ul'}
+
+        path = self.getPath(msgFromClient).split('?')[0]
+        for n in accessiblePaths:
+            if accessiblePaths.get(n) == path:
+                return True
         return False
 
     def getPath(self,clientMsg):

@@ -1,4 +1,4 @@
-ID=3
-Estado=ON
-Floor=2
-Upper=10000
+id=3
+status=ON
+floor=2
+upper=10000

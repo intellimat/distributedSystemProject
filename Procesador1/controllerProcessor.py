@@ -47,17 +47,19 @@ class Controller(object):
             io.writeMessage(self.csockeet, '<EOT>')
 
     def manageAuthRequest(self, msgFromGateway):
-        print('MANAGE AUTH REQUEST METHOD')
         #Read value and check wether to accept or refuse the request
-        io.writeMessage(self.csocket, 'ACCEPTED')
-        gatewayResponse = io.readMessage(p_socket)
+        outcome = 'ACCEPTED'
+        lrc = sm.getLRCvalueFromString(outcome)
+        s = f'<STX>{outcome}<ETX>{lrc}'
+        io.writeMessage(self.csocket, s)
+        gatewayResponse = io.readMessage(self.csocket)
         counter = 1
         while gatewayResponse != '<ACK>' and counter<4:
             counter += 1
-            self.sendAuthToProcessor(p_socket, msgFromGateway)
-            gatewayResponse = io.readMessage(p_socket)
+            io.writeMessage(self.csocket, 'ACCEPTED')
+            gatewayResponse = io.readMessage(self.csocket)
         if gatewayResponse != '<ACK>':
-            io.writeMessage('<EOT>')
+            io.writeMessage(self.csocket, '<EOT>')
             io.closeConnection(self.csocket)
         else: #<ACK> for the data sent
             io.readMessage(self.csocket) #expecting <EOT>

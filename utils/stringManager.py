@@ -19,6 +19,7 @@ def isLRC_ok(msgFromProc):
     answer = vu[0]
     lrc_fromProc = int(vu[1])
     calculated_lrc = getLRCvalueFromString(answer)
+    print(f'Calculated_LRC = {calculated_lrc}\nReceived_LRC = {lrc_fromProc}')
     return calculated_lrc == lrc_fromProc
 
 def getQueryStringParameters(url): #returns a dictionary with all the parameters -> key : value

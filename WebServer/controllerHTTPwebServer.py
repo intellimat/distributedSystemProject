@@ -191,6 +191,7 @@ class Controller(object):
         s = sm.setResourcePath('/auth')
         params = f'{name}#{cardNumber}#{cvv}#{expDate}#{amount}'
         s = sm.setParameters(s, params)
+        s = sm.setHeaders(s,'')
         lrc = sm.getLRCvalueFromString(s)
         s = '<STX>' + s + '<ETX>' + str(lrc)
         io.writeMessage(sock, s)
@@ -198,24 +199,30 @@ class Controller(object):
     def manageAuthRequest(self, msgFromClient):
         if self.isDataAuthCorrect(msgFromClient):
             self.sendDataAuth(self.gs, msgFromClient)
-            response = io.readMessage(self.gs)
+            gatewayResponse = io.readMessage(self.gs)
             counter = 1
-            while response != '<ACK>' and counter<4:
+            while gatewayResponse != '<ACK>' and counter<4:
                 counter += 1
                 self.sendDataAuth(self.gs, msgFromClient)
-                response = io.readMessage(self.gs)
-            if response != '<ACK>':
-                raise Exception('The addressee cannot receive data correctly.  ')
-            msgFromGateway = io.readMessage(self.gs) #the answer
-            if not sm.isLRC_ok(msgFromGateway):
-                print('\nThe LRC check returned false for four times.  \n')
-                io.writeMessage(self.gs, '<NACK>')
-                io.closeConnection(self.gs)
-            else:
-                io.writeMessage(self.gs, '<ACK>')
-                io.writeMessage(self.gs, '<EOT>')
-                io.closeConnection(self.gs)
-                self.sendHTMLresponseToClient(msgFromGateway)
+                gatewayResponse = io.readMessage(self.gs)
+            if gatewayResponse != '<ACK>':
+                raise Exception('The gateway cannot receive data correctly.  ')
+            else: #<ACK> for the data sent
+                gatewayResponse = io.readMessage(self.gs) #the answer
+                counter = 1
+                while not sm.isLRC_ok(gatewayResponse) and counter <4:
+                    counter += 1
+                    io.writeMessage(self.gs, '<NACK>')
+                    procResponse = io.readMessage(p_socket)
+                if sm.isLRC_ok(gatewayResponse):
+                    io.writeMessage(self.gs, '<ACK>')
+                    io.writeMessage(self.gs, '<EOT>')
+                    io.closeConnection(self.gs)
+                    self.sendHTMLresponseToClient(gatewayResponse)
+                else:
+                    io.writeMessage(self.gs, '<EOT>')
+                    io.closeConnection(self.gs)
+                    raise Exception('Impossible to retrieve data correctly from the gateway. LRC is different. ')
         else:
             self.sendBadRequest()
             io.writeMessage(self.gs, '<EOT>')
@@ -253,12 +260,12 @@ class Controller(object):
             else:
                 pass
         except socket.error as exc:
-            print('Connection to gateway failed.\n')
+            print('Connection to the gateway failed.\n')
             print(f'Exception: {exc}')
             ''''''
             html_page = io.readFile(os.path.curdir + '/error.html')
             newContent = '''<body>\n<div id="msg_instruction"> 500 Internal Server Error </div>
-                            <div id="details"> The gateway serve cannot be reached.
+                            <div id="details"> The gateway server cannot be reached properly.
                                                 Try again later. </div>'''
             v = html_page.split('<body>')
             updatedHTML = v[0] + newContent + v[1]

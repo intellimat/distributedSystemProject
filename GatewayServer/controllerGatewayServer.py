@@ -43,6 +43,7 @@ class Controller(object):
         s = sm.setResourcePath('/auth')
         params = f'{amount}'
         s = sm.setParameters(s, params)
+        s = sm.setHeaders(s,'')
         lrc = sm.getLRCvalueFromString(s)
         s = '<STX>' + s + '<ETX>' + str(lrc)
         io.writeMessage(p_socket, s)
@@ -69,6 +70,7 @@ class Controller(object):
                     io.writeMessage(p_socket, '<NACK>')
                     procResponse = io.readMessage(p_socket)
                 if sm.isLRC_ok(procResponse):
+                    io.writeMessage(p_socket, '<ACK>')
                     io.writeMessage(p_socket, '<EOT>')
                     io.closeConnection(p_socket)
                     self.sendResponseToWebServer(procResponse)
@@ -86,16 +88,31 @@ class Controller(object):
                                                 Try again later. </div>'''
             v = html_page.split('<body>')
             updatedHTML = v[0] + newContent + v[1]
-            page_length = len(updatedHTML)
-
-            s = sm.setCode('HTTP/1.1', 500)
-            s = sm.setMessageAnswer(s, 'Internal Server Error')
-            s = sm.setContentLength(s, page_length)
-            s = sm.setContentType(s, 'text/html')
-            s = sm.setConnection(s, 'Close\n\n')
-            s = s + updatedHTML
+            lrc = sm.getLRCvalueFromString(updatedHTML)
+            s = f'<STX>{updatedHTML}<ETX>{lrc}'
             io.writeMessage(self.csocket, s)
-            io.closeConnection(self.csocket)
+            clientResponse = io.readMessage(self.csocket)
+            counter = 1
+            while clientResponse != '<ACK>' and counter<4:
+                counter += 1
+                io.writeMessage(self.csocket, s)
+                clientResponse = io.readMessage(self.csocket)
+            if clientResponse != '<ACK>':
+                raise Exception('The addressee cannot receive data correctly.  ')
+            else: #<ACK> for the data sent
+                clientResponse = io.readMessage(self.csocket) #the answer
+                counter = 1
+                while not sm.isLRC_ok(clientResponse) and counter <4:
+                    counter += 1
+                    io.writeMessage(self.csocket, '<NACK>')
+                    clientResponse = io.readMessage(self.csocket)
+                if sm.isLRC_ok(clientResponse):
+                    io.writeMessage(self.csocket, '<ACK>')
+                    io.writeMessage(self.csocket, '<EOT>')
+                    io.closeConnection(self.csocket)
+                    self.sendResponseToWebServer(clientResponse)
+                else:
+                    io.readMessage(self.csocket) #expecting <EOT>
 
 
     def manageClientInteraction(self):
@@ -202,7 +219,7 @@ class Controller(object):
         filePath = pathlib.Path(basicPath, 'processorsMappingAndAddresses', 'Bines.txt')
         f = io.readFile(filePath)
         firstDigit = msgFromClient.split('Parameters[]:')[1].split('\n')[0].split('#')[1][0]
-        print(f'CARD FIRST DIGIT: {firstDigit}')
+        print(f'Card_firstDigit: {firstDigit}')
 
         buffer = []
         prec = ''
@@ -219,6 +236,7 @@ class Controller(object):
 
 
     def sendResponseToWebServer(self, procResponse):
+        procResponse = procResponse.split('<STX>')[1].split('<ETX>')[0]
         html_page = io.readFile(os.path.curdir + '/authResponse.html')
         v = html_page.split('<div id="outcome">')
         html_page = v[0] + '<div id="outcome">' + procResponse + v[1]

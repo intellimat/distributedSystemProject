@@ -1,5 +1,7 @@
 ''' Helper module '''
 import socket
+import os
+import sys
 pathRepo = os.path.dirname(os.path.dirname(os.getcwd()))
 sys.path.insert(1, pathRepo)
 
@@ -46,7 +48,7 @@ def establishConnection(address):
     sock = connectTo(IP, PORT)
     writeMessage(sock,'<ENQ>')
     response = readMessage(sock)
-    counter = 1
+    counter = 0
     while response != '<ACK>' and counter<3:
         counter += 1
         writeMessage(sock,'<ENQ>')
@@ -55,70 +57,6 @@ def establishConnection(address):
         raise Exception(f'Impossible to establish connection with {address}')
     print(f'Connection to {address} established. ')
     return sock
-
-def sendMessage(p_socket, message):
-    lrc = sm.getLRCvalueFromString(message)
-    s = '<STX>' + message + '<ETX>' + str(lrc)
-    writeMessage(p_socket, s)
-    response = readMessage(p_socket)
-    counter = 0
-    while response != '<ACK>' and counter<4:
-        counter += 1
-        writeMessage(p_socket, s)
-        response = readMessage(p_socket)
-    if response != '<ACK>':
-        writeMessage(p_socket, '<EOT>')
-        raise Exception('The addressee cannot receive data correctly.  ')
-    else: #<ACK> for the data sent
-        response = readMessage(p_socket) #the answer
-        receivedEOT = False
-        while not receivedEOT and not sm.isLRC_ok(response):
-            writeMessage(p_socket, '<NACK>')
-            response = readMessage(p_socket)
-            if response == '<EOT>':
-                receivedEOT = True
-        if receivedEOT == False: #means that I received correctly the response
-            writeMessage(p_socket,'<ACK>')
-            writeMessage(p_socket,'<EOT>')
-        else:
-            raise Exception("I couldn't receive the response correctly. ")
-
-def receiveMessageAndRespond(p_socket):
-    message = readMessage(p_socket)
-    if message != '<EOT>':
-        content = message.split('<STX>')[1].split('<ETX>')[0]
-        lrcReceived = message.split('<ETX>')[1]
-        lrcCalculated = sm.getLRCvalueFromString(content)
-        receivedEOT = False
-        while not receivedEOT and (lrcCalculated != lrcReceived):
-            writeMessage(p_socket, '<NACK>')
-            message = readMessage(p_socket)
-            if message == '<EOT>':
-                receivedEOT = True
-            else:
-                lrcReceived = message.split('<ETX>')[1]
-                lrcCalculated = sm.getLRCvalueFromString(content)
-        if not receivedEOT:
-            writeMessage(p_socket,'<ACK>')
-            answer = ''' we got the answer by calling some methods '''
-            writeMessage(p_socket,answer)
-            response = readMessage(p_socket)
-            counter = 0
-            while response != '<ACK>' and counter<4:
-                counter += 1
-                writeMessage(p_socket, answer)
-                response = readMessage(p_socket)
-            if response != '<ACK>':
-                writeMessage(p_socket, '<EOT>')
-                raise Exception('The addressee cannot receive data correctly.  ')
-            else:
-                endMessage = readMessage(p_socket) #waiting for <EOT>
-        else:
-            raise Exception("I couldn't received the data. ")
-
-
-
-
 
 
 def connectTo(IP, PORT):

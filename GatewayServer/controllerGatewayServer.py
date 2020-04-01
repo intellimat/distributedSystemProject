@@ -15,133 +15,33 @@ class Controller(object):
         self.host, self.port = self.csocket.getpeername()
 
     def parseRequest(self):
-        self.manageClientInteraction()
-        '''
-        if not self.isCorrectPath(path):
-            pass
+        try:
+            self.acceptConnection()
+            self.receiveMessageAndRespond(self.csocket)
+        except socket.error as exc:
+            print(f'\n{exc}\n')
 
-        elif resourcePath == '/info':
-            self.handleInformationRequest()
-
-        elif resourcePath == '/auth':
-            self.managePayment(msgFromClient)
-
-        elif resourcePath == '/status':
-            pass
-
-        elif resourcePath == '/fl':
-            pass
-
-        elif resourcePath == '/ul':
-            pass
-        else:
-            pass
-            '''
-    def sendAuthToProcessor(self, p_socket, msgFromWs):
-        amount = msgFromWs.split('Parameters[]:')[1].split('\n')[0].split('#')[-1]
-
+    def formatAuthRequestToProcessor(self, wsMsgContent):
+        amount = wsMsgContent.split('Parameters[]:')[1].split('\n')[0].split('#')[-1]
         s = sm.setResourcePath('/auth')
         params = f'{amount}'
         s = sm.setParameters(s, params)
         s = sm.setHeaders(s,'')
-        lrc = sm.getLRCvalueFromString(s)
-        s = '<STX>' + s + '<ETX>' + str(lrc)
-        io.writeMessage(p_socket, s)
+        return s
 
-    def manageAuthRequest(self, msgFromWs):
-        processorNumber = self.getProcessor(msgFromWs)
+    def getAuthOutcome(self, wsMsgContent):
+        processorNumber = self.getProcessor(wsMsgContent)
         address = self.findAddress(processorNumber)
         try:
-            p_socket = io.establishConnection(address) #raises exception
-            self.sendAuthToProcessor(p_socket, msgFromWs)
-            procResponse = io.readMessage(p_socket)
-            counter = 1
-            while procResponse != '<ACK>' and counter<4:
-                counter += 1
-                self.sendAuthToProcessor(p_socket, msgFromWs)
-                procResponse = io.readMessage(p_socket)
-            if procResponse != '<ACK>':
-                raise Exception('The addressee cannot receive data correctly.  ')
-            else: #<ACK> for the data sent
-                procResponse = io.readMessage(p_socket) #the answer
-                counter = 1
-                while not sm.isLRC_ok(procResponse) and counter <4:
-                    counter += 1
-                    io.writeMessage(p_socket, '<NACK>')
-                    procResponse = io.readMessage(p_socket)
-                if sm.isLRC_ok(procResponse):
-                    io.writeMessage(p_socket, '<ACK>')
-                    io.writeMessage(p_socket, '<EOT>')
-                    io.closeConnection(p_socket)
-                    self.sendResponseToWebServer(procResponse)
-                else:
-                    io.readMessage(p_socket) #expecting <EOT>
-                    self.sendResponseToWebServer('Error in receiving the response from the processor. ')
+            p_socket = io.establishConnection(address)
+            s = self.formatAuthRequestToProcessor(wsMsgContent)
+            responseFromProcessor = self.sendMessageAndGetResponse(p_socket, s).split('<STX>')[1].split('<ETX>')[0]
+            return responseFromProcessor
 
         except socket.error as exc:
             print('Connection to the selected processor failed.\n')
-            print(f'Exception: {exc}')
-            ''''''
-            html_page = io.readFile(os.path.curdir + '/error.html')
-            newContent = '''<body>\n<div id="msg_instruction"> 500 Internal Server Error </div>
-                            <div id="details"> The gateway couldn't connect to the selected processor.
-                                                Try again later. </div>'''
-            v = html_page.split('<body>')
-            updatedHTML = v[0] + newContent + v[1]
-            lrc = sm.getLRCvalueFromString(updatedHTML)
-            s = f'<STX>{updatedHTML}<ETX>{lrc}'
-            io.writeMessage(self.csocket, s)
-            clientResponse = io.readMessage(self.csocket)
-            counter = 1
-            while clientResponse != '<ACK>' and counter<4:
-                counter += 1
-                io.writeMessage(self.csocket, s)
-                clientResponse = io.readMessage(self.csocket)
-            if clientResponse != '<ACK>':
-                raise Exception('The addressee cannot receive data correctly.  ')
-            else: #<ACK> for the data sent
-                clientResponse = io.readMessage(self.csocket) #the answer
-                counter = 1
-                while not sm.isLRC_ok(clientResponse) and counter <4:
-                    counter += 1
-                    io.writeMessage(self.csocket, '<NACK>')
-                    clientResponse = io.readMessage(self.csocket)
-                if sm.isLRC_ok(clientResponse):
-                    io.writeMessage(self.csocket, '<ACK>')
-                    io.writeMessage(self.csocket, '<EOT>')
-                    io.closeConnection(self.csocket)
-                    self.sendResponseToWebServer(clientResponse)
-                else:
-                    io.readMessage(self.csocket) #expecting <EOT>
-
-
-    def manageClientInteraction(self):
-        msgFromClient = io.readMessage(self.csocket)
-        if msgFromClient == '<ENQ>':
-            io.writeMessage(self.csocket, '<ACK>')
-            msgFromClient = io.readMessage(self.csocket)
-            if msgFromClient == '<EOT>':
-                print('Connection ended by the WebServer without sending data. ')
-            else:
-                counter=1
-                lrc_correct = sm.isLRC_ok(msgFromClient)
-                while (not lrc_correct) and counter<4:
-                    counter+=1
-                    io.writeMessage(self.csocket, '<NACK>')
-                    msgFromClient = io.readMessage(self.csocket)
-                    lrc_correct = sm.isLRC_ok(msgFromClient)
-                if lrc_correct:
-                    io.writeMessage(self.csocket, '<ACK>')
-                    path = msgFromClient.split('ResourcePath:')[1].split('\n')[0]
-                    if path == '/auth':
-                        try:
-                            self.manageAuthRequest(msgFromClient)
-                        except Exception as exc:
-                            print(f'Exception: {exc}')
-
-        else:
-            io.writeMessage(self.csocket,'<NACK>')
-            io.writeMessage(self.csockeet, '<EOT>')
+            print(f'\n{exc}\n')
+            return str(exc)
 
     def getProcessorsInfo(self):
         try:
@@ -183,7 +83,6 @@ class Controller(object):
             io.closeConnection(self.csocket)
             '''
             #raise socket exception
-
     def handleInformationRequest(self):
         #try except socket exception
         data = self.getProcessorsInfo()
@@ -214,11 +113,11 @@ class Controller(object):
         path = clientMsg.split()[1]
         return path
 
-    def getProcessor(self, msgFromClient):
+    def getProcessor(self, clMsgContent):
         basicPath = pathlib.Path.cwd()
         filePath = pathlib.Path(basicPath, 'processorsMappingAndAddresses', 'Bines.txt')
         f = io.readFile(filePath)
-        firstDigit = msgFromClient.split('Parameters[]:')[1].split('\n')[0].split('#')[1][0]
+        firstDigit = clMsgContent.split('Parameters[]:')[1].split('\n')[0].split('#')[1][0]
         print(f'Card_firstDigit: {firstDigit}')
 
         buffer = []
@@ -233,23 +132,6 @@ class Controller(object):
                     prec = ''
                 else:
                     prec = c
-
-
-    def sendResponseToWebServer(self, procResponse):
-        procResponse = procResponse.split('<STX>')[1].split('<ETX>')[0]
-        html_page = io.readFile(os.path.curdir + '/authResponse.html')
-        v = html_page.split('<div id="outcome">')
-        html_page = v[0] + '<div id="outcome">' + procResponse + v[1]
-        lrc_answer = sm.getLRCvalueFromString(html_page)
-        io.writeMessage(self.csocket, f'<STX>{html_page}<ETX>{lrc_answer}')
-        msgFromClient = io.readMessage(self.csocket)
-        counter = 1
-        while msgFromClient!='<ACK>' and counter<4:
-            counter+=1
-            io.writeMessage(self.csocket, f'<STX>{html_page}<ETX>{str(lrc_answer)}')
-            msgFromClient = io.readMessage(self.csocket)
-        msgFromClient = io.readMessage(self.csocket) #expecting the <EOT> from the client
-
 
     def findAddress(self, processor):
         print(f'Getting address of processor: {processor}')
@@ -289,3 +171,94 @@ class Controller(object):
             return False
 
         return True
+
+    def acceptConnection(self):
+        msgFromWs = io.readMessage(self.csocket)
+        while msgFromWs != '<ENQ>' and msgFromWs != '<EOT>':
+            msgFromWs = io.readMessage(self.csocket)
+        if msgFromWs == '<ENQ>':
+            io.writeMessage(self.csocket, '<ACK>')
+        else:
+            raise socket.error('Impossible to establish a connection. ')
+
+    def sendMessageAndGetResponse(self, p_socket, message): #returns the response
+        lrc = sm.getLRCvalueFromString(message)
+        s = '<STX>' + message + '<ETX>' + str(lrc)
+        io.writeMessage(p_socket, s)
+        response = io.readMessage(p_socket)
+        counter = 0
+        while response != '<ACK>' and counter<4:
+            counter += 1
+            io.writeMessage(p_socket, s)
+            response = io.readMessage(p_socket)
+        if response != '<ACK>':
+            io.writeMessage(p_socket, '<EOT>')
+            raise socket.error('The addressee cannot receive data correctly.  ')
+        else: #<ACK> for the data sent
+            response = io.readMessage(p_socket) #the answer
+            receivedEOT = False
+            while not receivedEOT and not sm.isLRC_ok(response):
+                io.writeMessage(p_socket, '<NACK>')
+                response = io.readMessage(p_socket)
+                if response == '<EOT>':
+                    receivedEOT = True
+            if receivedEOT == False: #means that I received correctly the response
+                io.writeMessage(p_socket,'<ACK>')
+                io.writeMessage(p_socket,'<EOT>')
+                return response
+            else:
+                raise socket.error("I couldn't receive the response correctly. ")
+
+    def receiveMessageAndRespond(self, p_socket):
+        message = io.readMessage(p_socket)
+        if message != '<EOT>':
+            content = message.split('<STX>')[1].split('<ETX>')[0]
+            lrcReceived = message.split('<ETX>')[1]
+            lrcCalculated = str(sm.getLRCvalueFromString(content))
+            receivedEOT = False
+            print(f'lrcCalculated = {lrcCalculated}\nlrcReceived = {lrcReceived}')
+            while (not receivedEOT) and (lrcCalculated != lrcReceived):
+                io.writeMessage(p_socket, '<NACK>')
+                message = io.readMessage(p_socket)
+                if message == '<EOT>':
+                    receivedEOT = True
+                else:
+                    content = message.split('<STX>')[1].split('<ETX>')[0]
+                    lrcReceived = message.split('<ETX>')[1]
+                    lrcCalculated = str(sm.getLRCvalueFromString(content))
+            if not receivedEOT:
+                io.writeMessage(p_socket,'<ACK>')
+                html_page = self.handleMessageAndGetHTML(content)
+                lrcHTML = sm.getLRCvalueFromString(html_page)
+                msgToSend = f'<STX>{html_page}<ETX>{lrcHTML}'
+                io.writeMessage(p_socket,msgToSend)
+                response = io.readMessage(p_socket)
+                counter = 0
+                while response != '<ACK>' and counter<4:
+                    counter += 1
+                    io.writeMessage(p_socket, answer)
+                    response = io.readMessage(p_socket)
+                if response != '<ACK>':
+                    io.writeMessage(p_socket, '<EOT>')
+                    raise socket.error('The addressee cannot receive data correctly.  ')
+                else:
+                    endMessage = io.readMessage(p_socket) #waiting for <EOT>
+            else:
+                raise socket.error("I couldn't received the data. ")
+
+    def handleMessageAndGetHTML(self, msgContent):
+        resourcePath = msgContent.split('ResourcePath:')[1].split('\n')[0]
+
+        if resourcePath == '/auth':
+            outcome = self.getAuthOutcome(msgContent)
+            html = self.getUpdatedHTML(outcome)
+            return html
+
+        else:
+            pass
+
+    def getUpdatedHTML(self, outcome):
+        html_page = io.readFile(os.path.curdir + '/authResponse.html')
+        v = html_page.split('<div id="outcome">')
+        html_page = v[0] + '<div id="outcome">' + outcome + v[1]
+        return html_page

@@ -13,7 +13,7 @@ def getLRCvalueFromString(s): #s is the string
     l = [ord(i) for i in s]
     return calculate_LRC(l)
 
-def isLRC_ok(msgFromProc):
+def isLRC_ok(msgFromProc):  #deprecated
     v = msgFromProc.split('<STX>')
     vu = v[1].split('<ETX>')
     answer = vu[0]

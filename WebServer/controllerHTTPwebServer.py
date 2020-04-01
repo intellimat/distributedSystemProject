@@ -179,7 +179,7 @@ class Controller(object):
             return False
         return True
 
-    def sendDataAuth(self, sock, msgFromClient):
+    def formatAuthRequest(self, msgFromClient):
         path = self.getPath(msgFromClient)
         parameters = sm.getQueryStringParameters(path)
         name = parameters.get('name')
@@ -187,42 +187,18 @@ class Controller(object):
         cvv = parameters.get('cvv')
         expDate = parameters.get('expDate')
         amount = parameters.get('amount')
-
         s = sm.setResourcePath('/auth')
         params = f'{name}#{cardNumber}#{cvv}#{expDate}#{amount}'
         s = sm.setParameters(s, params)
         s = sm.setHeaders(s,'')
-        lrc = sm.getLRCvalueFromString(s)
-        s = '<STX>' + s + '<ETX>' + str(lrc)
-        io.writeMessage(sock, s)
+        return s
 
     def manageAuthRequest(self, msgFromClient):
         if self.isDataAuthCorrect(msgFromClient):
-            self.sendDataAuth(self.gs, msgFromClient)
-            gatewayResponse = io.readMessage(self.gs)
-            counter = 1
-            while gatewayResponse != '<ACK>' and counter<4:
-                counter += 1
-                self.sendDataAuth(self.gs, msgFromClient)
-                gatewayResponse = io.readMessage(self.gs)
-            if gatewayResponse != '<ACK>':
-                raise Exception('The gateway cannot receive data correctly.  ')
-            else: #<ACK> for the data sent
-                gatewayResponse = io.readMessage(self.gs) #the answer
-                counter = 1
-                while not sm.isLRC_ok(gatewayResponse) and counter <4:
-                    counter += 1
-                    io.writeMessage(self.gs, '<NACK>')
-                    procResponse = io.readMessage(p_socket)
-                if sm.isLRC_ok(gatewayResponse):
-                    io.writeMessage(self.gs, '<ACK>')
-                    io.writeMessage(self.gs, '<EOT>')
-                    io.closeConnection(self.gs)
-                    self.sendHTMLresponseToClient(gatewayResponse)
-                else:
-                    io.writeMessage(self.gs, '<EOT>')
-                    io.closeConnection(self.gs)
-                    raise Exception('Impossible to retrieve data correctly from the gateway. LRC is different. ')
+            s = self.formatAuthRequest(msgFromClient)
+            responseFromGateway = self.sendMessageAndGetResponse(self.gs, s)
+            self.sendHTMLresponseToClient(responseFromGateway)
+
         else:
             self.sendBadRequest()
             io.writeMessage(self.gs, '<EOT>')
@@ -279,3 +255,31 @@ class Controller(object):
             s = s + updatedHTML
             io.writeMessage(self.csocket, s)
             io.closeConnection(self.csocket)
+
+    def sendMessageAndGetResponse(self, p_socket, message): #returns the response
+        lrc = sm.getLRCvalueFromString(message)
+        s = '<STX>' + message + '<ETX>' + str(lrc)
+        io.writeMessage(p_socket, s)
+        response = io.readMessage(p_socket)
+        counter = 0
+        while response != '<ACK>' and counter<4:
+            counter += 1
+            io.writeMessage(p_socket, s)
+            response = io.readMessage(p_socket)
+        if response != '<ACK>':
+            io.writeMessage(p_socket, '<EOT>')
+            raise Exception('The addressee cannot receive data correctly.  ')
+        else: #<ACK> for the data sent
+            response = io.readMessage(p_socket) #the answer
+            receivedEOT = False
+            while not receivedEOT and not sm.isLRC_ok(response):
+                io.writeMessage(p_socket, '<NACK>')
+                response = io.readMessage(p_socket)
+                if response == '<EOT>':
+                    receivedEOT = True
+            if receivedEOT == False: #means that I received correctly the response
+                io.writeMessage(p_socket,'<ACK>')
+                io.writeMessage(p_socket,'<EOT>')
+                return response
+            else:
+                raise Exception("I couldn't receive the response correctly. ")

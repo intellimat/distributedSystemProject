@@ -9,63 +9,94 @@ sys.path.insert(1, pathRepo)
 from distributedSystemProject.utils import inputOutput as io
 from distributedSystemProject.utils import stringManager as sm
 
+from random import randint
+from datetime import date
+
 class Controller(object):
     def __init__(self,csocket):
         self.csocket = csocket
         self.host, self.port = self.csocket.getpeername()
 
     def parseRequest(self):
-        self.manageClientInteraction()
+        try:
+            self.acceptConnection()
+            self.receiveMessageAndRespond(self.csocket)
+        except socket.error as exc:
+            print(f'\n{exc}\n')
 
-    def manageClientInteraction(self):
-        msgFromGateway = io.readMessage(self.csocket)
-        if msgFromGateway == '<ENQ>':
+
+    def acceptConnection(self):
+        msgFromWs = io.readMessage(self.csocket)
+        while msgFromWs != '<ENQ>' and msgFromWs != '<EOT>':
+            msgFromWs = io.readMessage(self.csocket)
+        if msgFromWs == '<ENQ>':
             io.writeMessage(self.csocket, '<ACK>')
-            msgFromGateway = io.readMessage(self.csocket)
-            if msgFromGateway == '<EOT>':
-                print('Connection ended by the Gateway server without sending data. ')
+        else:
+            raise socket.error('Impossible to establish a connection. ')
+
+    def receiveMessageAndRespond(self, p_socket):
+        message = io.readMessage(p_socket)
+        if message != '<EOT>':
+            content = message.split('<STX>')[1].split('<ETX>')[0]
+            lrcReceived = message.split('<ETX>')[1]
+            lrcCalculated = str(sm.getLRCvalueFromString(content))
+            receivedEOT = False
+            print(f'lrcCalculated = {lrcCalculated}\nlrcReceived = {lrcReceived}')
+            while (not receivedEOT) and (lrcCalculated != lrcReceived):
+                io.writeMessage(p_socket, '<NACK>')
+                message = io.readMessage(p_socket)
+                if message == '<EOT>':
+                    receivedEOT = True
+                else:
+                    content = message.split('<STX>')[1].split('<ETX>')[0]
+                    lrcReceived = message.split('<ETX>')[1]
+                    lrcCalculated = str(sm.getLRCvalueFromString(content))
+            if not receivedEOT:
+                io.writeMessage(p_socket,'<ACK>')
+                response = self.handleMessageAndGetResponse(content)
+                lrcResponse = sm.getLRCvalueFromString(response)
+                msgToSend = f'<STX>{response}<ETX>{lrcResponse}'
+                io.writeMessage(p_socket,msgToSend)
+                response = io.readMessage(p_socket)
+                counter = 0
+                while response != '<ACK>' and counter<4:
+                    counter += 1
+                    io.writeMessage(p_socket, answer)
+                    response = io.readMessage(p_socket)
+                if response != '<ACK>':
+                    io.writeMessage(p_socket, '<EOT>')
+                    raise socket.error('The addressee cannot receive data correctly.  ')
+                else:
+                    endMessage = io.readMessage(p_socket) #waiting for <EOT>
             else:
-                counter=1
-                lrc_correct = sm.isLRC_ok(msgFromGateway)
-                print(f'LRC value = {lrc_correct}')
-                while (not lrc_correct) and counter<4:
-                    counter+=1
-                    io.writeMessage(self.csocket, '<NACK>')
-                    msgFromGateway = io.readMessage(self.csocket)
-                    lrc_correct = sm.isLRC_ok(msgFromGateway)
-                if lrc_correct:
-                    io.writeMessage(self.csocket, '<ACK>')
-                    path = msgFromGateway.split('ResourcePath:')[1].split('\n')[0]
-                    if path == '/auth':
-                        try:
-                            self.manageAuthRequest(msgFromGateway)
-                        except Exception as exc:
-                            print(f'Exception: {exc}')
+                raise socket.error("I couldn't received the data. ")
+
+    def handleMessageAndGetResponse(self, msgContent):
+        resourcePath = msgContent.split('ResourcePath:')[1].split('\n')[0]
+        print(f'ResourcePath: {resourcePath}')
+
+        if resourcePath == '/auth':
+            outcome = self.getAuthOutcome(msgContent)
+            return outcome
 
         else:
-            io.writeMessage(self.csocket,'<NACK>')
-            io.writeMessage(self.csockeet, '<EOT>')
+            return 'ramo else'
+            pass
 
-    def manageAuthRequest(self, msgFromGateway):
-        #Read value and check wether to accept or refuse the request
-        outcome = 'ACCEPTED'
-        lrc = sm.getLRCvalueFromString(outcome)
-        s = f'<STX>{outcome}<ETX>{lrc}'
-        io.writeMessage(self.csocket, s)
-        gatewayResponse = io.readMessage(self.csocket)
-        counter = 1
-        while gatewayResponse != '<ACK>' and counter<4:
-            counter += 1
-            io.writeMessage(self.csocket, 'ACCEPTED')
-            gatewayResponse = io.readMessage(self.csocket)
-        if gatewayResponse != '<ACK>':
-            io.writeMessage(self.csocket, '<EOT>')
-            io.closeConnection(self.csocket)
-        else: #<ACK> for the data sent
-            io.readMessage(self.csocket) #expecting <EOT>
+    def getAuthOutcome(self, msgContent):
+        d = date.today().strftime("%B %d, %Y")
 
-    def getParameterValue(self,parameter): #parameter must be 'status', 'fl' or 'ul'
-        f = getProcParameters()
+        amount = int(msgContent.split('Parameters[]:')[1].split('\n')[0])
+        floorLimit = int(self.getParameterValue('floor'))
+        upperLimit = int(self.getParameterValue('upper'))
+        if amount > floorLimit and amount<upperLimit:
+            outcome = f'Accepted. AuthCode:{randint(0,1000)}. Amount: {amount} euro. Date: {d}'
+        else:
+            outcome = f'Refused. AuthCode:{randint(0,1000)}. Amount: {amount} euro. Date: {d}'
+        return outcome
+
+    def getParameterValue(self,parameter): #parameter must be 'status', 'floor' or 'upper'
+        f = self.getProcParameters()
         value = f.split(parameter + '=')[1].split('\n')[0]
         return value
 

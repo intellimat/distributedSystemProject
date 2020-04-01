@@ -6,6 +6,7 @@ pathRepo = os.path.dirname(os.path.dirname(os.getcwd()))
 sys.path.insert(1, pathRepo)
 
 from distributedSystemProject.utils import stringManager as sm
+from distributedSystemProject.utils.Exception import NetworkException
 
 
 def readMessage(sock): #reads the message coming from the client
@@ -54,13 +55,16 @@ def establishConnection(address):
         writeMessage(sock,'<ENQ>')
         response = readMessage(sock)
     if response != '<ACK>':
-        raise Exception(f'Impossible to establish connection with {address}')
+        raise NetworkException(f'Impossible to establish connection with {address}')
     print(f'Connection to {address} established. ')
     return sock
 
 
 def connectTo(IP, PORT):
     # AF_INET means IPv4, SCOCK_STREM means TCP
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((IP, PORT))
-    return s
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((IP, PORT))
+        return s
+    except socket.error as e:
+        raise NetworkException('Impossible to connect through the socket system to the gateway server.')

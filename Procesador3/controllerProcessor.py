@@ -61,7 +61,7 @@ class Controller(object):
                 counter = 0
                 while response != '<ACK>' and counter<4:
                     counter += 1
-                    io.writeMessage(p_socket, answer)
+                    io.writeMessage(p_socket, msgToSend)
                     response = io.readMessage(p_socket)
                 if response != '<ACK>':
                     io.writeMessage(p_socket, '<EOT>')
@@ -86,13 +86,16 @@ class Controller(object):
     def getAuthOutcome(self, msgContent):
         d = date.today().strftime("%B %d, %Y")
 
-        amount = int(msgContent.split('Parameters[]:')[1].split('\n')[0])
-        floorLimit = int(self.getParameterValue('floor'))
-        upperLimit = int(self.getParameterValue('upper'))
-        if amount > floorLimit and amount<upperLimit:
-            outcome = f'Accepted. AuthCode:{randint(0,1000)}. Amount: {amount} euro. Date: {d}'
+        if self.getParameterValue('status') == 'ON':
+            amount = int(msgContent.split('Parameters[]:')[1].split('\n')[0])
+            floorLimit = int(self.getParameterValue('floor'))
+            upperLimit = int(self.getParameterValue('upper'))
+            if amount > floorLimit and amount<upperLimit:
+                outcome = f'Accepted. AuthCode:{randint(0,1000)}. Amount: {amount} euro. Date: {d}'
+            else:
+                outcome = f'Refused. AuthCode:{randint(0,1000)}. Amount: {amount} euro. Date: {d}'
         else:
-            outcome = f'Refused. AuthCode:{randint(0,1000)}. Amount: {amount} euro. Date: {d}'
+            outcome = f'The processor status is OFF. '
         return outcome
 
     def getParameterValue(self,parameter): #parameter must be 'status', 'floor' or 'upper'

@@ -30,7 +30,7 @@ class Controller(object):
         return s
 
     def getAuthOutcome(self, wsMsgContent):
-        processorNumber = self.getProcessor(wsMsgContent)
+        processorNumber = self.selectProcessor(wsMsgContent)
         address = self.findAddress(processorNumber)
         try:
             p_socket = io.establishConnection(address)
@@ -73,15 +73,7 @@ class Controller(object):
 
         except socket.error as exc:
             print('Connection to a processor failed. ')
-            '''
-            s = sm.setCode('HTTP/1.1', 500)
-            s = sm.setMessageAnswer(s, 'Internal Server Error')
-            s = sm.setConnection(s, 'Close\n\n')
-            s = s + 'Socket error: Connection to a processor failed. \n'
-            io.writeMessage(self.csocket, s)
-            print(f'Sent \n{s} to the client (WebServer in this case) after request\n')
-            io.closeConnection(self.csocket)
-            '''
+
             #raise socket exception
     def handleInformationRequest(self):
         #try except socket exception
@@ -101,19 +93,12 @@ class Controller(object):
         io.writeMessage(self.csocket, s)
         io.closeConnection(self.csocket)
 
-    def sendMethodNotAllowed(self):
-        response_msg = 'HTTP/1.1 405 Method Not Allowed\n'
-        io.writeMessage(self.csocket, response_msg)
-
-    def sendBadRequest(self):
-        response_msg = 'HTTP/1.1 400 Bad Request\n'
-        io.writeMessage(self.csocket, response_msg)
 
     def getPath(self,clientMsg):
         path = clientMsg.split()[1]
         return path
 
-    def getProcessor(self, clMsgContent):
+    def selectProcessor(self, clMsgContent):
         basicPath = pathlib.Path.cwd()
         filePath = pathlib.Path(basicPath, 'processorsMappingAndAddresses', 'Bines.txt')
         f = io.readFile(filePath)
@@ -236,7 +221,7 @@ class Controller(object):
                 counter = 0
                 while response != '<ACK>' and counter<4:
                     counter += 1
-                    io.writeMessage(p_socket, answer)
+                    io.writeMessage(p_socket, msgToSend)
                     response = io.readMessage(p_socket)
                 if response != '<ACK>':
                     io.writeMessage(p_socket, '<EOT>')

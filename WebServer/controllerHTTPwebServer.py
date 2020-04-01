@@ -8,6 +8,7 @@ sys.path.insert(1, pathRepo)
 
 from distributedSystemProject.utils import inputOutput as io
 from distributedSystemProject.utils import stringManager as sm
+from distributedSystemProject.utils.Exception import NetworkException
 
 class Controller(object):
     def __init__(self,csocket):
@@ -226,6 +227,7 @@ class Controller(object):
             if path == '/gatewaySD/auth':
                 self.manageAuthRequest(msgFromClient)
             elif path == '/gatewaySD/index':
+                self.manageIndexReuqest(msgFromClient)
                 pass
             elif path[:17] == '/gatewaySD/status':
                 pass
@@ -235,26 +237,30 @@ class Controller(object):
                 pass
             else:
                 pass
-        except socket.error as exc:
+        except NetworkException as exc:
             print('Connection to the gateway failed.\n')
-            print(f'Exception: {exc}')
-            ''''''
-            html_page = io.readFile(os.path.curdir + '/error.html')
-            newContent = '''<body>\n<div id="msg_instruction"> 500 Internal Server Error </div>
-                            <div id="details"> The gateway server cannot be reached properly.
-                                                Try again later. </div>'''
-            v = html_page.split('<body>')
-            updatedHTML = v[0] + newContent + v[1]
-            page_length = len(updatedHTML)
+            print(f'\n{exc}\n')
+            self.sendInternalServerError(exc.message)
 
-            s = sm.setCode('HTTP/1.1', 500)
-            s = sm.setMessageAnswer(s, 'Internal Server Error')
-            s = sm.setContentLength(s, page_length)
-            s = sm.setContentType(s, 'text/html')
-            s = sm.setConnection(s, 'Close\n\n')
-            s = s + updatedHTML
-            io.writeMessage(self.csocket, s)
-            io.closeConnection(self.csocket)
+
+    def sendInternalServerError(self, exc):
+        html_page = io.readFile(os.path.curdir + '/error.html')
+        newContent = '''<body>\n<div id="msg_instruction"> 500 Internal Server Error </div>
+                        <div id="details"> The gateway server cannot be reached properly.
+                                            Try again later.<br></div>'''
+        newContent = newContent + f'<div>Error detected: {exc}</div>'
+        v = html_page.split('<body>')
+        updatedHTML = v[0] + newContent + v[1]
+        page_length = len(updatedHTML)
+
+        s = sm.setCode('HTTP/1.1', 500)
+        s = sm.setMessageAnswer(s, 'Internal Server Error')
+        s = sm.setContentLength(s, page_length)
+        s = sm.setContentType(s, 'text/html')
+        s = sm.setConnection(s, 'Close\n\n')
+        s = s + updatedHTML
+        io.writeMessage(self.csocket, s)
+        io.closeConnection(self.csocket)
 
     def sendMessageAndGetResponse(self, p_socket, message): #returns the response
         lrc = sm.getLRCvalueFromString(message)
@@ -268,7 +274,7 @@ class Controller(object):
             response = io.readMessage(p_socket)
         if response != '<ACK>':
             io.writeMessage(p_socket, '<EOT>')
-            raise Exception('The addressee cannot receive data correctly.  ')
+            raise socket.error('The gateway server cannot receive data correctly.  ')
         else: #<ACK> for the data sent
             response = io.readMessage(p_socket) #the answer
             receivedEOT = False
@@ -282,4 +288,4 @@ class Controller(object):
                 io.writeMessage(p_socket,'<EOT>')
                 return response
             else:
-                raise Exception("I couldn't receive the response correctly. ")
+                raise socket.error("The web server couldn't receive the response correctly from the gateway server. ")

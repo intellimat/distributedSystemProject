@@ -39,18 +39,11 @@ class Controller(object):
 
     def getAuthOutcome(self, wsMsgContent):
         processorNumber = self.selectProcessor(wsMsgContent)
-        try:
-            address = self.findAddress(processorNumber)
-            p_socket = io.establishConnection(address)
-            s = self.formatAuthRequestToProcessor(wsMsgContent)
-            responseFromProcessor = self.sendMessageAndGetResponse(p_socket, s)
-            return responseFromProcessor
-        except ProcessorAddressNotFound as exc:
-            print(f'\n{exc}\n')
-            return exc.message
-        except NetworkException as exc:
-            print(f'\n{exc}\n')
-            return exc.message
+        address = self.findAddress(processorNumber)
+        p_socket = io.establishConnection(address)
+        s = self.formatAuthRequestToProcessor(wsMsgContent)
+        responseFromProcessor = self.sendMessageAndGetResponse(p_socket, s)
+        return responseFromProcessor
 
     def getProcessorsInfo(self):
         processorsAddresses = []
@@ -77,6 +70,8 @@ class Controller(object):
                 unreachableProcessors.append(p_address)
         if len(unreachableProcessors) > 0:
             print(f'\nUnreachable processors: {unreachableProcessors}\n')
+        if len(processorsInfo) == 0:
+            raise NetworkException('All the processors cannot be reached. ')
         processorsInfo.append('#')
         return (processorsInfo + unreachableProcessors)
 
@@ -220,14 +215,23 @@ class Controller(object):
     def handleMessageAndGetHTML(self, msgContent):
         resourcePath = msgContent.split('ResourcePath:')[1].split('\n')[0]
 
-        if resourcePath == '/auth':
-            outcome = self.getAuthOutcome(msgContent)
-            html = self.getUpdatedAuthHTML(outcome)
-        elif resourcePath == '/index.html':
-            outcome = self.getProcessorsInfo()
-            html = self.getUpdatedProcessorInfoHTML(outcome)
-        else:
-            pass
+        try:
+            if resourcePath == '/auth':
+                outcome = self.getAuthOutcome(msgContent)
+                html = self.getUpdatedAuthHTML(outcome)
+            elif resourcePath == '/index.html':
+                outcome = self.getProcessorsInfo()
+                html = self.getUpdatedProcessorInfoHTML(outcome)
+            else:
+                pass
+        except (NetworkException, ProcessorAddressNotFound) as exc:
+            html = io.readFile(os.path.curdir + '/error.html')
+            newContent = '''<body>\n<div id="msg_instruction"> 409 Conflict </div>
+                            <div id="details"> The gateway server cannot connect to the processor properly.
+                                                Try again later. <br></div>'''
+            newContent = newContent + f'<div id="specificError">Error details: {exc.message}</div>'
+            v = html.split('<body>')
+            html = v[0] + newContent + v[1]
         return html
 
     def getUpdatedAuthHTML(self, outcome):

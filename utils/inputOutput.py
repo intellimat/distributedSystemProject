@@ -67,4 +67,4 @@ def connectTo(IP, PORT):
         s.connect((IP, PORT))
         return s
     except socket.error as e:
-        raise NetworkException(f'409 Conflict\nImpossible to connect through the socket system to the address: {IP} and port: {PORT}')
+        raise NetworkException(f'impossible to connect through the socket system to the address: {IP} on port: {PORT}')

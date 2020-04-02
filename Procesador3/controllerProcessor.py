@@ -8,7 +8,7 @@ sys.path.insert(1, pathRepo)
 
 from distributedSystemProject.utils import inputOutput as io
 from distributedSystemProject.utils import stringManager as sm
-
+from distributedSystemProject.utils.Exception import NetworkException
 from random import randint
 from datetime import date
 
@@ -21,8 +21,9 @@ class Controller(object):
         try:
             self.acceptConnection()
             self.receiveMessageAndRespond(self.csocket)
-        except socket.error as exc:
+        except NetworkException as exc:
             print(f'\n{exc}\n')
+            print(exc.message)
 
 
     def acceptConnection(self):
@@ -32,7 +33,7 @@ class Controller(object):
         if msgFromWs == '<ENQ>':
             io.writeMessage(self.csocket, '<ACK>')
         else:
-            raise socket.error('Impossible to establish a connection. ')
+            raise NetworkException('Impossible to accept the gateway connection. ')
 
     def receiveMessageAndRespond(self, p_socket):
         message = io.readMessage(p_socket)
@@ -65,11 +66,11 @@ class Controller(object):
                     response = io.readMessage(p_socket)
                 if response != '<ACK>':
                     io.writeMessage(p_socket, '<EOT>')
-                    raise socket.error('The addressee cannot receive data correctly.  ')
+                    raise NetworkException('The gateway cannot receive data correctly.  ')
                 else:
                     endMessage = io.readMessage(p_socket) #waiting for <EOT>
             else:
-                raise socket.error("I couldn't received the data. ")
+                raise NetworkException("The processor couldn't receive data correctly from the Gateway")
 
     def handleMessageAndGetResponse(self, msgContent):
         resourcePath = msgContent.split('ResourcePath:')[1].split('\n')[0]
@@ -77,6 +78,9 @@ class Controller(object):
 
         if resourcePath == '/auth':
             outcome = self.getAuthOutcome(msgContent)
+            return outcome
+        elif resourcePath == '/info':
+            outcome = self.getProcParameters()
             return outcome
 
         else:
@@ -109,10 +113,6 @@ class Controller(object):
         filePath = pathlib.Path(basicPath, 'config.txt')
         f = io.readFile(filePath)
         return f
-
-    def sendProcParameters(self):
-        params = self.getProcParameters()
-        io.writeMessage(self.csocket, params)
 
     def setProcParameter(self, parameter):  #parameter is something like this 'status=OFF'
         basicPath = pathlib.Path.cwd()
@@ -147,7 +147,8 @@ class Controller(object):
         accessiblePaths = { '0': '/auth',
                             '1': '/status',
                             '2': '/fl',
-                            '3': '/ul'}
+                            '3': '/ul',
+                            '4': '/info'}
 
         path = self.getPath(msgFromClient).split('?')[0]
         for n in accessiblePaths:

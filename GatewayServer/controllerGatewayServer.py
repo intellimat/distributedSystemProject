@@ -23,6 +23,11 @@ class Controller(object):
             print(f'\n{exc}\n')
             print(exc.message)
 
+    def formatProcessorInfoRequest(self):
+        s = sm.setResourcePath('/info')
+        s = sm.setParameters(s, '')
+        s = sm.setHeaders(s,'')
+        return s
 
     def formatAuthRequestToProcessor(self, wsMsgContent):
         amount = wsMsgContent.split('Parameters[]:')[1].split('\n')[0].split('#')[-1]
@@ -48,60 +53,34 @@ class Controller(object):
             return exc.message
 
     def getProcessorsInfo(self):
+        print('\nINSIDE getProcessorsInfo\n')
         processorsAddresses = []
-
-        try:
-            p1_address = self.findAddress(1)
-            processorsAddresses.append(p1_address)
-        except ProcessorAddressNotFound as exc:
-            print(f'\n{exc}\n')
-        finally:
+        notFoundAddresses = []
+        for i in range(1,4):
             try:
-                p2_address = self.findAddress(2)
-                processorsAddresses.append(p2_address)
+                p_address = self.findAddress(str(i))
+                processorsAddresses.append(p_address)
             except ProcessorAddressNotFound as exc:
-                print(f'\n{exc}\n')
-            finally:
-                try:
-                    p3_address = self.findAddress(3)
-                    processorsAddresses.append(p3_address)
-
-                except ProcessorAddressNotFound as exc:
-                    print(f'\n{exc}\n')
-                finally:
-                    try:
-                        for p_address in processorsAddresses:
-                            p_socket = io.establishConnection(p_address[0], p_address[1])
-
-                        style = 'style = "margin-left: 2em; font-weight: normal; font-size: 22px;"'
-                        allProcsConfig = f'<ul>\n<li {style} >{f1}</li><br>\n<li {style} >{f2}</li><br>\n<li {style} >{f3}</li><br>\n</ul>'
-
-                        return allProcsConfig
-
-                    except NetworkException as exc:
-                        print(f'\n{exc}\n')
-
-
-
-            #raise socket exception
-    def handleInformationRequest(self):
-        #try except socket exception
-        data = self.getProcessorsInfo()
-        page = io.readFile(os.curdir + '/info.html')
-        v = page.split('<div class="infoProcs">')
-        updatedHTML = v[0] + data + v[1]
-        pageLength = len(updatedHTML)
-        # s is the response message
-        s = sm.setCode('HTTP/1.1', 200)
-        s = sm.setMessageAnswer(s, 'OK')
-        s = sm.setContentLength(s, pageLength)
-        s = sm.setContentType(s, 'text/html')
-        s = sm.setConnection(s, 'Close')
-        s = s + f'\n\n{updatedHTML}'
-        print(f"Message to send to the client (WebServer in this case) as response: \n\n HTML page")
-        io.writeMessage(self.csocket, s)
-        io.closeConnection(self.csocket)
-
+                print(exc.message)
+                notFoundAddresses.append(i)
+        if len(notFoundAddresses) > 0:
+            print(f'\nNot found addresses: {notFoundAddresses}\n')
+        unreachableProcessors = []
+        processorsInfo = []
+        for p_address in processorsAddresses:
+            try:
+                p_socket = io.establishConnection(p_address)
+                message = self.formatProcessorInfoRequest()
+                processorInfo = self.sendMessageAndGetResponse(p_socket, message)
+                processorInfo = processorInfo.split('<STX>')[1].split('<ETX>')[0]
+                processorsInfo.append(processorInfo)
+            except NetworkException as exc:
+                print (exc.message)
+                unreachableProcessors.append(p_address)
+        if len(unreachableProcessors) > 0:
+            print(f'\nUnreachable processors: {unreachableProcessors}\n')
+        processorsInfo.append('#')
+        return (processorsInfo + unreachableProcessors)
 
     def getPath(self,clientMsg):
         path = clientMsg.split()[1]
@@ -247,7 +226,7 @@ class Controller(object):
             outcome = self.getAuthOutcome(msgContent)
             html = self.getUpdatedAuthHTML(outcome)
         elif resourcePath == '/index':
-            outcome = self.getProcessorsInfo(msgContent)
+            outcome = self.getProcessorsInfo()
             html = self.getUpdatedProcessorInfoHTML(outcome)
         else:
             pass
@@ -259,5 +238,20 @@ class Controller(object):
         html_page = v[0] + '<div id="outcome">' + outcome + v[1]
         return html_page
 
-    def getUpdatedProcessorInfoHTML(self,outcome):
-        pass
+    def getUpdatedProcessorInfoHTML(self,processorsInfo):
+        style = 'style = "margin-left: 2em; font-weight: normal; font-size: 22px;"'
+        s = ''
+        for p_info in processorsInfo:
+            if p_info != '#':
+                s = s + f'<li {style} >{p_info}</li><br>\n'
+        newContent = '<ul>\n' + s + '</ul>'
+        index = processorsInfo.index('#')
+
+        if len(processorsInfo[index+1:])>0:
+            s = f'<div {style}>The following processors could not be reached: {processorsInfo[index+1:]} </div>\n'
+            newContent = newContent + s
+
+        html_page = io.readFile(os.path.curdir + '/info.html')
+        v = html_page.split('<div class="infoProcs">')
+        html_page = v[0] + '<div class="infoProcs">' + newContent + v[1]
+        return html_page

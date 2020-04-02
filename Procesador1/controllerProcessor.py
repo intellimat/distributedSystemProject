@@ -60,14 +60,14 @@ class Controller(object):
                 io.writeMessage(p_socket,msgToSend)
                 response = io.readMessage(p_socket)
                 counter = 0
-                while response != '<ACK>' and counter<4:
+                while response != '<ACK>' and '<EOT>' not in response and counter<4:
                     counter += 1
                     io.writeMessage(p_socket, msgToSend)
                     response = io.readMessage(p_socket)
-                if response != '<ACK>':
+                if response != '<ACK>' and '<EOT>' not in response:
                     io.writeMessage(p_socket, '<EOT>')
                     raise NetworkException('The gateway cannot receive data correctly.  ')
-                else:
+                elif '<EOT>' not in response:
                     endMessage = io.readMessage(p_socket) #waiting for <EOT>
             else:
                 raise NetworkException("The processor couldn't receive data correctly from the Gateway")

@@ -43,7 +43,7 @@ class Controller(object):
             address = self.findAddress(processorNumber)
             p_socket = io.establishConnection(address)
             s = self.formatAuthRequestToProcessor(wsMsgContent)
-            responseFromProcessor = self.sendMessageAndGetResponse(p_socket, s).split('<STX>')[1].split('<ETX>')[0]
+            responseFromProcessor = self.sendMessageAndGetResponse(p_socket, s)
             return responseFromProcessor
         except ProcessorAddressNotFound as exc:
             print(f'\n{exc}\n')
@@ -53,7 +53,6 @@ class Controller(object):
             return exc.message
 
     def getProcessorsInfo(self):
-        print('\nINSIDE getProcessorsInfo\n')
         processorsAddresses = []
         notFoundAddresses = []
         for i in range(1,4):
@@ -72,7 +71,6 @@ class Controller(object):
                 p_socket = io.establishConnection(p_address)
                 message = self.formatProcessorInfoRequest()
                 processorInfo = self.sendMessageAndGetResponse(p_socket, message)
-                processorInfo = processorInfo.split('<STX>')[1].split('<ETX>')[0]
                 processorsInfo.append(processorInfo)
             except NetworkException as exc:
                 print (exc.message)
@@ -178,7 +176,7 @@ class Controller(object):
             if receivedEOT == False: #means that I received correctly the response
                 io.writeMessage(p_socket,'<ACK>')
                 io.writeMessage(p_socket,'<EOT>')
-                return response
+                return response.split('<STX>')[1].split('<ETX>')[0]
             else:
                 raise NetworkException("The gateway couldn't receive the response correctly from the processor. ")
 
@@ -207,14 +205,14 @@ class Controller(object):
                 io.writeMessage(p_socket,msgToSend)
                 response = io.readMessage(p_socket)
                 counter = 0
-                while response != '<ACK>' and counter<4:
+                while response != '<ACK>' and '<EOT>' not in response and counter<4:
                     counter += 1
                     io.writeMessage(p_socket, msgToSend)
                     response = io.readMessage(p_socket)
-                if response != '<ACK>':
+                if response != '<ACK>' and '<EOT>' not in response:
                     io.writeMessage(p_socket, '<EOT>')
                     raise NetworkException('The web server cannot receive data correctly.  ')
-                else:
+                elif '<EOT>' not in response:
                     endMessage = io.readMessage(p_socket) #waiting for <EOT>
             else:
                 raise NetworkException("The gateway couldn't received the data correctly from the web server. ")
@@ -225,7 +223,7 @@ class Controller(object):
         if resourcePath == '/auth':
             outcome = self.getAuthOutcome(msgContent)
             html = self.getUpdatedAuthHTML(outcome)
-        elif resourcePath == '/index':
+        elif resourcePath == '/index.html':
             outcome = self.getProcessorsInfo()
             html = self.getUpdatedProcessorInfoHTML(outcome)
         else:
@@ -241,14 +239,13 @@ class Controller(object):
     def getUpdatedProcessorInfoHTML(self,processorsInfo):
         style = 'style = "margin-left: 2em; font-weight: normal; font-size: 22px;"'
         s = ''
-        for p_info in processorsInfo:
-            if p_info != '#':
-                s = s + f'<li {style} >{p_info}</li><br>\n'
-        newContent = '<ul>\n' + s + '</ul>'
         index = processorsInfo.index('#')
+        for p_info in processorsInfo[:index]:
+            s = s + f'<li {style} >{p_info}</li><br>\n'
+        newContent = '<ul>\n' + s + '</ul>'
 
         if len(processorsInfo[index+1:])>0:
-            s = f'<div {style}>The following processors could not be reached: {processorsInfo[index+1:]} </div>\n'
+            s = f'<div {style}>The following processors could not be reached: {[i for i in processorsInfo[index+1:]]} </div>\n'
             newContent = newContent + s
 
         html_page = io.readFile(os.path.curdir + '/info.html')

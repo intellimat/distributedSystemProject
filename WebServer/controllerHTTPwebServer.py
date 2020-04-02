@@ -48,7 +48,7 @@ class Controller(object):
                             '1': '',
                             '2': '/',
                             '3': '/index.html',
-                            '4': '/gatewaySD/index',
+                            '4': '/gatewaySD/index.html',
                             '5': '/gatewaySD/auth',
                             '6': '/gatewaySD/status',
                             '7': '/gatewaySD/fl',
@@ -206,7 +206,7 @@ class Controller(object):
             io.closeConnection(self.gs)
 
     def formatIndexRequest(self, msgFromClient):
-        s = sm.setResourcePath('/index')
+        s = sm.setResourcePath('/index.html')
         s = sm.setParameters(s, '')
         s = sm.setHeaders(s,'')
         return s
@@ -216,8 +216,7 @@ class Controller(object):
         responseFromGateway = self.sendMessageAndGetResponse(self.gs, s)
         self.sendHTMLresponseToClient(responseFromGateway)
 
-    def sendHTMLresponseToClient(self, msgFromGateway):
-        html_page = msgFromGateway.split('<STX>')[1].split('<ETX>')[0]
+    def sendHTMLresponseToClient(self, html_page):
         pageLength = len(html_page)
         s = sm.setCode('HTTP/1.1', 200)
         s = sm.setMessageAnswer(s, 'OK')
@@ -225,7 +224,6 @@ class Controller(object):
         s = sm.setContentType(s, 'text/html')
         s = sm.setConnection(s, 'Close')
         s = s + f'\n\n{html_page}'
-        print(f"Message to send to the client (user in this case) as response: \n\n HTML page")
         io.writeMessage(self.csocket, s)
 
 
@@ -237,7 +235,7 @@ class Controller(object):
 
             if path == '/gatewaySD/auth':
                 self.manageAuthRequest(msgFromClient)
-            elif path == '/gatewaySD/index':
+            elif path == '/gatewaySD/index.html':
                 self.manageIndexRequest(msgFromClient)
             elif path[:17] == '/gatewaySD/status':
                 pass
@@ -250,12 +248,12 @@ class Controller(object):
         except NetworkException as exc:
             print('Connection to the gateway failed.\n')
             print(f'\n{exc}\n')
-            self.sendInternalServerError(exc.message)
+            self.sendCommunicationError(exc.message)
 
 
-    def sendInternalServerError(self, exc):
+    def sendCommunicationError(self, exc):
         html_page = io.readFile(os.path.curdir + '/error.html')
-        newContent = '''<body>\n<div id="msg_instruction"> 500 Internal Server Error </div>
+        newContent = '''<body>\n<div id="msg_instruction"> 409 Conflict </div>
                         <div id="details"> The gateway server cannot be reached properly.
                                             Try again later.<br></div>'''
         newContent = newContent + f'<div>Error detected: {exc}</div>'
@@ -296,6 +294,6 @@ class Controller(object):
             if receivedEOT == False: #means that I received correctly the response
                 io.writeMessage(p_socket,'<ACK>')
                 io.writeMessage(p_socket,'<EOT>')
-                return response
+                return response.split('<STX>')[1].split('<ETX>')[0]
             else:
                 raise NetworkException("The web server couldn't receive the response correctly from the gateway server. ")

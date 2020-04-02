@@ -10,7 +10,7 @@ from distributedSystemProject.utils.Exception import NetworkException
 
 
 def readMessage(sock): #reads the message coming from the client
-    rawData = sock.recv(4092)
+    rawData = sock.recv(8192)
     decodedData = rawData.decode("utf-8")
     host, port = sock.getpeername()
     print(f"Received the message:\n'{decodedData}' \nfrom {host} on port {port}\n\n")
@@ -67,4 +67,4 @@ def connectTo(IP, PORT):
         s.connect((IP, PORT))
         return s
     except socket.error as e:
-        raise NetworkException('Impossible to connect through the socket system to the gateway server.')
+        raise NetworkException(f'409 Conflict\nImpossible to connect through the socket system to the address: {IP} and port: {PORT}')

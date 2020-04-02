@@ -10,7 +10,7 @@ class threadServer(Thread):
         self.csocket = csocket
         self.host, self.port = self.csocket.getpeername()
         self.controller = controllerGatewayServer.Controller(csocket)
-        print (f'New server socket thread created')
+        print (f'New server socket thread created. ')
 
 
     def run(self): #code run by each thread

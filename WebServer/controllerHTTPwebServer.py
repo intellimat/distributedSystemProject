@@ -205,6 +205,17 @@ class Controller(object):
             io.writeMessage(self.gs, '<EOT>')
             io.closeConnection(self.gs)
 
+    def formatIndexRequest(self, msgFromClient):
+        s = sm.setResourcePath('/index')
+        s = sm.setParameters(s, '')
+        s = sm.setHeaders(s,'')
+        return s
+
+    def manageIndexRequest(self, msgFromClient):
+        s = self.formatIndexRequest(msgFromClient)
+        responseFromGateway = self.sendMessageAndGetResponse(self.gs, s)
+        self.sendHTMLresponseToClient(responseFromGateway)
+
     def sendHTMLresponseToClient(self, msgFromGateway):
         html_page = msgFromGateway.split('<STX>')[1].split('<ETX>')[0]
         pageLength = len(html_page)
@@ -227,8 +238,7 @@ class Controller(object):
             if path == '/gatewaySD/auth':
                 self.manageAuthRequest(msgFromClient)
             elif path == '/gatewaySD/index':
-                self.manageIndexReuqest(msgFromClient)
-                pass
+                self.manageIndexRequest(msgFromClient)
             elif path[:17] == '/gatewaySD/status':
                 pass
             elif path[:13] == '/gatewaySD/fl':
@@ -274,7 +284,7 @@ class Controller(object):
             response = io.readMessage(p_socket)
         if response != '<ACK>':
             io.writeMessage(p_socket, '<EOT>')
-            raise socket.error('The gateway server cannot receive data correctly.  ')
+            raise NetworkException('The gateway server cannot receive data correctly.  ')
         else: #<ACK> for the data sent
             response = io.readMessage(p_socket) #the answer
             receivedEOT = False
@@ -288,4 +298,4 @@ class Controller(object):
                 io.writeMessage(p_socket,'<EOT>')
                 return response
             else:
-                raise socket.error("The web server couldn't receive the response correctly from the gateway server. ")
+                raise NetworkException("The web server couldn't receive the response correctly from the gateway server. ")

@@ -8,6 +8,7 @@ sys.path.insert(1, pathRepo)
 
 from distributedSystemProject.utils import inputOutput as io
 from distributedSystemProject.utils import stringManager as sm
+from distributedSystemProject.utils.Exception import NetworkException, ProcessorAddressNotFound
 
 class Controller(object):
     def __init__(self,csocket):
@@ -18,8 +19,10 @@ class Controller(object):
         try:
             self.acceptConnection()
             self.receiveMessageAndRespond(self.csocket)
-        except socket.error as exc:
+        except NetworkException as exc:
             print(f'\n{exc}\n')
+            print(exc.message)
+
 
     def formatAuthRequestToProcessor(self, wsMsgContent):
         amount = wsMsgContent.split('Parameters[]:')[1].split('\n')[0].split('#')[-1]
@@ -31,48 +34,54 @@ class Controller(object):
 
     def getAuthOutcome(self, wsMsgContent):
         processorNumber = self.selectProcessor(wsMsgContent)
-        address = self.findAddress(processorNumber)
         try:
+            address = self.findAddress(processorNumber)
             p_socket = io.establishConnection(address)
             s = self.formatAuthRequestToProcessor(wsMsgContent)
             responseFromProcessor = self.sendMessageAndGetResponse(p_socket, s).split('<STX>')[1].split('<ETX>')[0]
             return responseFromProcessor
-
-        except socket.error as exc:
-            print('Connection to the selected processor failed.\n')
+        except ProcessorAddressNotFound as exc:
             print(f'\n{exc}\n')
-            return str(exc)
+            return exc.message
+        except NetworkException as exc:
+            print(f'\n{exc}\n')
+            return exc.message
 
     def getProcessorsInfo(self):
+        processorsAddresses = []
+
         try:
             p1_address = self.findAddress(1)
-            p2_address = self.findAddress(2)
-            p3_address = self.findAddress(3)
-        except Exception as exc:
-            print(f'\n{exc}\n\n')
+            processorsAddresses.append(p1_address)
+        except ProcessorAddressNotFound as exc:
+            print(f'\n{exc}\n')
+        finally:
+            try:
+                p2_address = self.findAddress(2)
+                processorsAddresses.append(p2_address)
+            except ProcessorAddressNotFound as exc:
+                print(f'\n{exc}\n')
+            finally:
+                try:
+                    p3_address = self.findAddress(3)
+                    processorsAddresses.append(p3_address)
 
-        try:
-            p1_socket = self.connectToProcessor(p1_address[0], p1_address[1])
-            p2_socket = self.connectToProcessor(p2_address[0], p2_address[1])
-            p3_socket = self.connectToProcessor(p3_address[0], p3_address[1])
+                except ProcessorAddressNotFound as exc:
+                    print(f'\n{exc}\n')
+                finally:
+                    try:
+                        for p_address in processorsAddresses:
+                            p_socket = io.establishConnection(p_address[0], p_address[1])
 
-            httpRequest = 'GET /info HTTP/1.1\n\n'
+                        style = 'style = "margin-left: 2em; font-weight: normal; font-size: 22px;"'
+                        allProcsConfig = f'<ul>\n<li {style} >{f1}</li><br>\n<li {style} >{f2}</li><br>\n<li {style} >{f3}</li><br>\n</ul>'
 
-            io.writeMessage(p1_socket, httpRequest)
-            io.writeMessage(p2_socket, httpRequest)
-            io.writeMessage(p3_socket, httpRequest)
+                        return allProcsConfig
 
-            f1 = io.readMessage(p1_socket)
-            f2 = io.readMessage(p2_socket)
-            f3 = io.readMessage(p3_socket)
+                    except NetworkException as exc:
+                        print(f'\n{exc}\n')
 
-            style = 'style = "margin-left: 2em; font-weight: normal; font-size: 22px;"'
-            allProcsConfig = f'<ul>\n<li {style} >{f1}</li><br>\n<li {style} >{f2}</li><br>\n<li {style} >{f3}</li><br>\n</ul>'
 
-            return allProcsConfig
-
-        except socket.error as exc:
-            print('Connection to a processor failed. ')
 
             #raise socket exception
     def handleInformationRequest(self):
@@ -138,7 +147,7 @@ class Controller(object):
             else:
                 buffer = []
 
-        raise Exception('Processor not present in the list')
+        raise ProcessorAddressNotFound(f'The address of the processor number "{processor}" cannot be found. ')
 
     def isCorrectPath(self, path):
         if path == '/gatewaySD/auth' or path == '/gatewaySD/info':
@@ -164,7 +173,7 @@ class Controller(object):
         if msgFromWs == '<ENQ>':
             io.writeMessage(self.csocket, '<ACK>')
         else:
-            raise socket.error('Impossible to establish a connection. ')
+            raise NetworkException('Impossible to establish a connection. ')
 
     def sendMessageAndGetResponse(self, p_socket, message): #returns the response
         lrc = sm.getLRCvalueFromString(message)
@@ -178,7 +187,7 @@ class Controller(object):
             response = io.readMessage(p_socket)
         if response != '<ACK>':
             io.writeMessage(p_socket, '<EOT>')
-            raise socket.error('The addressee cannot receive data correctly.  ')
+            raise NetworkException('The processor cannot receive data correctly.  ')
         else: #<ACK> for the data sent
             response = io.readMessage(p_socket) #the answer
             receivedEOT = False
@@ -192,7 +201,7 @@ class Controller(object):
                 io.writeMessage(p_socket,'<EOT>')
                 return response
             else:
-                raise socket.error("I couldn't receive the response correctly. ")
+                raise NetworkException("The gateway couldn't receive the response correctly from the processor. ")
 
     def receiveMessageAndRespond(self, p_socket):
         message = io.readMessage(p_socket)
@@ -225,25 +234,30 @@ class Controller(object):
                     response = io.readMessage(p_socket)
                 if response != '<ACK>':
                     io.writeMessage(p_socket, '<EOT>')
-                    raise socket.error('The addressee cannot receive data correctly.  ')
+                    raise NetworkException('The web server cannot receive data correctly.  ')
                 else:
                     endMessage = io.readMessage(p_socket) #waiting for <EOT>
             else:
-                raise socket.error("I couldn't received the data. ")
+                raise NetworkException("The gateway couldn't received the data correctly from the web server. ")
 
     def handleMessageAndGetHTML(self, msgContent):
         resourcePath = msgContent.split('ResourcePath:')[1].split('\n')[0]
 
         if resourcePath == '/auth':
             outcome = self.getAuthOutcome(msgContent)
-            html = self.getUpdatedHTML(outcome)
-            return html
-
+            html = self.getUpdatedAuthHTML(outcome)
+        elif resourcePath == '/index':
+            outcome = self.getProcessorsInfo(msgContent)
+            html = self.getUpdatedProcessorInfoHTML(outcome)
         else:
             pass
+        return html
 
-    def getUpdatedHTML(self, outcome):
+    def getUpdatedAuthHTML(self, outcome):
         html_page = io.readFile(os.path.curdir + '/authResponse.html')
         v = html_page.split('<div id="outcome">')
         html_page = v[0] + '<div id="outcome">' + outcome + v[1]
         return html_page
+
+    def getUpdatedProcessorInfoHTML(self,outcome):
+        pass

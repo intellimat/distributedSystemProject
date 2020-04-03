@@ -8,12 +8,13 @@ sys.path.insert(1, pathRepo)
 
 from distributedSystemProject.utils import inputOutput as io
 from distributedSystemProject.utils import stringManager as sm
-from distributedSystemProject.utils.Exception import NetworkException, ProcessorAddressNotFound
+from distributedSystemProject.utils.Exception import NetworkException, ProcessorAddressNotFound, ParametersNotCorrect
 
 class Controller(object):
     def __init__(self,csocket):
         self.csocket = csocket
         self.host, self.port = self.csocket.getpeername()
+        self.numberOfProcessors = 3
 
     def parseRequest(self):
         try:
@@ -22,6 +23,14 @@ class Controller(object):
         except NetworkException as exc:
             print(f'\n{exc}\n')
             print(exc.message)
+
+    def formatParameterRequest(self, wsMsgContent):
+        ps = wsMsgContent.split('Parameters[]:')[1].split('\n')[0]
+        parameters = sm.getQueryStringParameters(ps)
+        if ('proc' in parameters) and (('set' in parameters and len(parameters) == 2) or (len(parameters) == 1)):
+            return wsMsgContent
+        else:
+            raise ParametersNotCorrect()
 
     def formatProcessorInfoRequest(self):
         s = sm.setResourcePath('/info')
@@ -48,7 +57,7 @@ class Controller(object):
     def getProcessorsInfo(self):
         processorsAddresses = []
         notFoundAddresses = []
-        for i in range(1,4):
+        for i in range(1,numberOfProcessors+1):
             try:
                 p_address = self.findAddress(str(i))
                 processorsAddresses.append(p_address)
@@ -75,9 +84,8 @@ class Controller(object):
         processorsInfo.append('#')
         return (processorsInfo + unreachableProcessors)
 
-    def getPath(self,clientMsg):
-        path = clientMsg.split()[1]
-        return path
+    def getParameterRequestOutcome(self, msgContent):
+        pass
 
     def selectProcessor(self, clMsgContent):
         basicPath = pathlib.Path.cwd()
@@ -120,23 +128,6 @@ class Controller(object):
                 buffer = []
 
         raise ProcessorAddressNotFound(f'The address of the processor number "{processor}" cannot be found. ')
-
-    def isCorrectPath(self, path):
-        if path == '/gatewaySD/auth' or path == '/gatewaySD/info':
-            return True
-        return False
-
-    def isCorrectData(self, msgFromClient):
-        if data.get("cardNumber") != 16:
-            return False
-
-        if data.get("cvv") != 3:
-            return False
-
-        if data.get("amount") <= 0:
-            return False
-
-        return True
 
     def acceptConnection(self):
         msgFromWs = io.readMessage(self.csocket)
@@ -194,7 +185,7 @@ class Controller(object):
                     lrcCalculated = str(sm.getLRCvalueFromString(content))
             if not receivedEOT:
                 io.writeMessage(p_socket,'<ACK>')
-                html_page = self.handleMessageAndGetHTML(content)
+                html_page = self.handleMessageAndGetHTML(content) #here we call the logic to decide what to do
                 lrcHTML = sm.getLRCvalueFromString(html_page)
                 msgToSend = f'<STX>{html_page}<ETX>{lrcHTML}'
                 io.writeMessage(p_socket,msgToSend)
@@ -221,7 +212,10 @@ class Controller(object):
                 html = self.getUpdatedAuthHTML(outcome)
             elif resourcePath == '/index.html':
                 outcome = self.getProcessorsInfo()
-                html = self.getUpdatedProcessorInfoHTML(outcome)
+                html = self.getUpdatedProcessorsInfoHTML(outcome)
+            elif resourcePath == '/status' or resourcePath == '/fl' or resourcePath == '/ul':
+                outcome = self.getParameterRequestOutcome(msgContent)
+                html = self.getUpdatedParameterRequestHTML(outcome)
             else:
                 pass
         except (NetworkException, ProcessorAddressNotFound) as exc:
@@ -232,7 +226,19 @@ class Controller(object):
             newContent = newContent + f'<div id="specificError">Error details: {exc.message}</div>'
             v = html.split('<body>')
             html = v[0] + newContent + v[1]
+        except ParametersNotCorrect as exc:
+            html = io.readFile(os.path.curdir + '/error.html')
+            newContent = '''<body>\n<div id="msg_instruction"> 400 Bad Request </div>
+                            <div id="details"> The query string parameters are not correct.  <br></div>'''
+            v = html.split('<body>')
+            html = v[0] + newContent + v[1]
         return html
+
+    def getUpdatedParameterRequestHTML(self, outcome):
+        html_page = io.readFile(os.path.curdir + '/parametersResponse.html')
+        v = html_page.split('<div id="outcome">')
+        html_page = v[0] + '<div id="outcome">' + outcome + v[1]
+        return html_page
 
     def getUpdatedAuthHTML(self, outcome):
         html_page = io.readFile(os.path.curdir + '/authResponse.html')
@@ -240,7 +246,7 @@ class Controller(object):
         html_page = v[0] + '<div id="outcome">' + outcome + v[1]
         return html_page
 
-    def getUpdatedProcessorInfoHTML(self,processorsInfo):
+    def getUpdatedProcessorsInfoHTML(self,processorsInfo):
         style = 'style = "margin-left: 2em; font-weight: normal; font-size: 22px;"'
         s = ''
         index = processorsInfo.index('#')

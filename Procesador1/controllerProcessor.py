@@ -82,10 +82,15 @@ class Controller(object):
         elif resourcePath == '/info':
             outcome = self.getProcParameters()
             return outcome
-
+        elif resourcePath == '/status' or resourcePath == '/ul' or resourcePath == '/fl':
+            self.getParameterRequestOutcome(msgContent)
+            return outcome
         else:
             return 'ramo else'
             pass
+
+    def getParameterRequestOutcome(msgContent):
+        pass
 
     def getAuthOutcome(self, msgContent):
         d = date.today().strftime("%B %d, %Y")

@@ -180,6 +180,15 @@ class Controller(object):
             return False
         return True
 
+    def formatParameterRequest(self, msgFromClient):
+        path = self.getPath(msgFromClient)
+        parameters = self.getPath(msgFromClient).split('?')[1]
+        resourcePath = self.getPath(msgFromClient).split('/gatewaySD')[1].split('?')[0]
+        s = sm.setResourcePath(resourcePath) # it can be /status or /fl or /ul
+        s = sm.setParameters(s, parameters)
+        s = sm.setHeaders(s,'')
+        return s
+
     def formatAuthRequest(self, msgFromClient):
         path = self.getPath(msgFromClient)
         parameters = sm.getQueryStringParameters(path)
@@ -237,19 +246,23 @@ class Controller(object):
                 self.manageAuthRequest(msgFromClient)
             elif path == '/gatewaySD/index.html':
                 self.manageIndexRequest(msgFromClient)
-            elif path[:17] == '/gatewaySD/status':
-                pass
-            elif path[:13] == '/gatewaySD/fl':
-                pass
-            elif path[:13] == '/gatewaySD/ul':
-                pass
+            elif path[:17] == '/gatewaySD/status' or path[:13] == '/gatewaySD/fl' or path[:13] == '/gatewaySD/ul':
+                self.manageParameterRequest(msgFromClient)
             else:
                 pass
+                #It should never reach this line beacuase we have performed the check before calling this method
+                #io.writeMessage(self.gs, '<EOT>')
+                #io.closeConnection(self.gs)
+
         except NetworkException as exc:
             print('Connection to the gateway failed.\n')
             print(f'\n{exc}\n')
             self.sendCommunicationError(exc.message)
 
+    def manageParameterRequest(self, msgFromClient):
+        s = self.formatParameterRequest(msgFromClient)
+        responseFromGateway = self.sendMessageAndGetResponse(self.gs, s)
+        self.sendHTMLresponseToClient(responseFromGateway)
 
     def sendCommunicationError(self, exc):
         html_page = io.readFile(os.path.curdir + '/error.html')

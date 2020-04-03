@@ -1,4 +1,5 @@
 import json
+from distributedSystemProject.utils.Exception import ParametersNotCorrect
 def calculate_LRC(data):
     lrc = 0x00
     for element in data:
@@ -23,13 +24,16 @@ def isLRC_ok(msgFromProc):  #deprecated
     return calculated_lrc == lrc_fromProc
 
 def getQueryStringParameters(url): #returns a dictionary with all the parameters -> key : value
-    v = url.split('?')
-    v = v[1].split('&')
-    d = {}
-    for i in v:
-        u = i.split('=')
-        d[u[0]] = u[1]
-    return d
+    try:
+        v = url.split('?')
+        v = v[1].split('&')
+        d = {}
+        for i in v:
+            u = i.split('=')
+            d[u[0]] = u[1]
+        return d
+    except ValueError as exc:
+        raise ParametersNotCorrect()
 
 def setContentLength(msg, msgLength):
     return msg + f'\nContent-Length: {msgLength}'

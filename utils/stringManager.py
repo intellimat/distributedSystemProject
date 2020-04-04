@@ -25,15 +25,24 @@ def isLRC_ok(msgFromProc):  #deprecated
 
 def getQueryStringParameters(url): #returns a dictionary with all the parameters -> key : value
     try:
-        v = url.split('?')
-        v = v[1].split('&')
         d = {}
-        for i in v:
-            u = i.split('=')
+        v = url.split('?')
+        if len(v)>=2 and '&' in v[1]:
+            v = v[1].split('&')
+            for i in v:
+                u = i.split('=')
+                d[u[0]] = u[1]
+        elif '&' in v[0]:
+            v = v[0].split('&')
+            for i in v:
+                u = i.split('=')
+                d[u[0]] = u[1]
+        elif '=' in v[0]:
+            u = v[0].split('=')
             d[u[0]] = u[1]
         return d
-    except ValueError as exc:
-        raise ParametersNotCorrect()
+    except (ValueError,IndexError) as exc:
+        raise ParametersNotCorrect(str(exc))
 
 def setContentLength(msg, msgLength):
     return msg + f'\nContent-Length: {msgLength}'

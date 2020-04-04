@@ -83,14 +83,22 @@ class Controller(object):
             outcome = self.getProcParameters()
             return outcome
         elif resourcePath == '/status' or resourcePath == '/ul' or resourcePath == '/fl':
-            self.getParameterRequestOutcome(msgContent)
+            outcome = self.getParameterRequestOutcome(msgContent)
             return outcome
         else:
             return 'ramo else'
-            pass
 
-    def getParameterRequestOutcome(msgContent):
-        pass
+    def getParameterRequestOutcome(self, msgContent):
+        parameter = msgContent.split('ResourcePath:/')[1].split('\n')[0]
+        queryStringParameters = msgContent.split('Parameters[]:')[1].split('\n')[0]
+        dictionary = sm.getQueryStringParameters(queryStringParameters)
+        if 'set' in dictionary:
+            value = dictionary.get('set')
+            self.setProcParameter(f'{parameter}={value}')
+            return f'Parameter {parameter} has been updated with the value {value}.'
+        else:
+            value = self.getParameterValue(parameter)
+            return f'{parameter}={value}.'
 
     def getAuthOutcome(self, msgContent):
         d = date.today().strftime("%B %d, %Y")
@@ -109,9 +117,12 @@ class Controller(object):
 
     def getParameterValue(self,parameter): #parameter must be 'status', 'floor' or 'upper'
         f = self.getProcParameters()
+        if parameter == 'fl':
+            parameter = 'floor'
+        elif parameter == 'ul':
+            parameter = 'upper'
         value = f.split(parameter + '=')[1].split('\n')[0]
         return value
-
 
     def getProcParameters(self):
         basicPath = pathlib.Path.cwd()

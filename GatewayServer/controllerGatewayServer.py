@@ -25,12 +25,16 @@ class Controller(object):
             print(exc.message)
 
     def formatParameterRequest(self, wsMsgContent):
+        resourcePath = wsMsgContent.split('ResourcePath:')[1].split('\n')[0]
+        s = sm.setResourcePath(resourcePath)
         ps = wsMsgContent.split('Parameters[]:')[1].split('\n')[0]
         parameters = sm.getQueryStringParameters(ps)
-        if ('proc' in parameters) and (('set' in parameters and len(parameters) == 2) or (len(parameters) == 1)):
-            return wsMsgContent
+        if 'set' in parameters:
+            s = sm.setParameters(s, 'set='+parameters.get('set'))
         else:
-            raise ParametersNotCorrect()
+            s = sm.setParameters(s, '')
+        s = sm.setHeaders(s,'')
+        return s
 
     def formatProcessorInfoRequest(self):
         s = sm.setResourcePath('/info')
@@ -57,7 +61,7 @@ class Controller(object):
     def getProcessorsInfo(self):
         processorsAddresses = []
         notFoundAddresses = []
-        for i in range(1,numberOfProcessors+1):
+        for i in range(1, self.numberOfProcessors+1):
             try:
                 p_address = self.findAddress(str(i))
                 processorsAddresses.append(p_address)
@@ -84,8 +88,19 @@ class Controller(object):
         processorsInfo.append('#')
         return (processorsInfo + unreachableProcessors)
 
-    def getParameterRequestOutcome(self, msgContent):
-        pass
+    def getParameterRequestOutcome(self, wsMsgContent):
+        parametersQueryString = wsMsgContent.split('Parameters[]:')[1].split('\n')[0]
+        dictionary = sm.getQueryStringParameters(parametersQueryString)
+        if 'proc' in dictionary:
+            print(f'dictionary is {dictionary}')
+            processorNumber = dictionary.get('proc')
+            address = self.findAddress(processorNumber)
+            p_socket = io.establishConnection(address)
+            s = self.formatParameterRequest(wsMsgContent)
+            responseFromProcessor = self.sendMessageAndGetResponse(p_socket, s)
+            return responseFromProcessor
+        else:
+            raise ParametersNotCorrect('Missing proc parameter. ')
 
     def selectProcessor(self, clMsgContent):
         basicPath = pathlib.Path.cwd()

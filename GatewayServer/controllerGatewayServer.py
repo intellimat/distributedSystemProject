@@ -43,10 +43,9 @@ class Controller(object):
         return s
 
     def formatAuthRequestToProcessor(self, wsMsgContent):
-        amount = wsMsgContent.split('Parameters[]:')[1].split('\n')[0].split('#')[-1]
+        cardDetails = wsMsgContent.split('Parameters[]:')[1].split('\n')[0]
         s = sm.setResourcePath('/auth')
-        params = f'{amount}'
-        s = sm.setParameters(s, params)
+        s = sm.setParameters(s, cardDetails)
         s = sm.setHeaders(s,'')
         return s
 

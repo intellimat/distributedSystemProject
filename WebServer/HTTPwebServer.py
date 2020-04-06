@@ -10,8 +10,7 @@ class threadServer(Thread):
         self.csocket = csocket
         self.host, self.port = self.csocket.getpeername()
         self.controller = controllerHTTPwebServer.Controller(csocket)
-        print (f'New server socket thread created.')
-
+        print(f'New server socket thread created.')
 
     def run(self): #code run by each thread
         self.controller.parseRequest()
@@ -35,6 +34,5 @@ while True:
 
     threads = [t for t in threads if t.is_alive()]
     print(f"\nNumber of threads alive: {len(threads)}\n")
-
 #for t in threads:
-#    t.join()
+    #t.join()

@@ -10,7 +10,7 @@ from distributedSystemProject.utils import inputOutput as io
 from distributedSystemProject.utils import stringManager as sm
 from distributedSystemProject.utils.Exception import NetworkException
 from random import randint
-from datetime import date
+from datetime import date, datetime
 
 class Controller(object):
     def __init__(self,csocket):
@@ -86,7 +86,7 @@ class Controller(object):
             outcome = self.getParameterRequestOutcome(msgContent)
             return outcome
         else:
-            return 'ramo else'
+            return 'ERROR'
 
     def getParameterRequestOutcome(self, msgContent):
         parameter = msgContent.split('ResourcePath:/')[1].split('\n')[0]
@@ -104,15 +104,19 @@ class Controller(object):
         d = date.today().strftime("%B %d, %Y")
 
         if self.getParameterValue('status') == 'ON':
-            amount = int(msgContent.split('Parameters[]:')[1].split('\n')[0])
-            floorLimit = int(self.getParameterValue('floor'))
-            upperLimit = int(self.getParameterValue('upper'))
-            if amount > floorLimit and amount<upperLimit:
-                outcome = f'Accepted. AuthCode:{randint(0,1000)}. Amount: {amount} euro. Date: {d}'
+            expDate = msgContent.split('Parameters[]:')[1].split('\n')[0].split('#')[-2]
+            amount = int(msgContent.split('Parameters[]:')[1].split('\n')[0].split('#')[-1])
+            if self.isExpDateValid(expDate):
+                floorLimit = int(self.getParameterValue('floor'))
+                upperLimit = int(self.getParameterValue('upper'))
+                if amount > floorLimit and amount<upperLimit:
+                    outcome = f'ACCEPTED <br>AuthCode: {randint(0,1000)} <br>Amount: {amount} euro <br>Date: {d}'
+                else:
+                    outcome = f'REFUSED <br>AuthCode: {randint(0,1000)} <br>Amount: {amount} euro <br>Date: {d}'
             else:
-                outcome = f'Refused. AuthCode:{randint(0,1000)}. Amount: {amount} euro. Date: {d}'
+                outcome = f'REFUSED <br>AuthCode: {randint(0,1000)} <br>Amount: {amount} euro <br>Date: {d} <br> The card provided has expired. '
         else:
-            outcome = f'The processor status is OFF. '
+            outcome = f'The processor is not available for processing your payment request. '
         return outcome
 
     def getParameterValue(self,parameter): #parameter must be 'status', 'floor' or 'upper'
@@ -142,23 +146,6 @@ class Controller(object):
         s = before + middle + after
         io.writeFile(filePath, s)
 
-        '''
-        defParameter = parameter.split('=')[0]
-        if defParameter == 'id':
-            status = f'status={self.getParameterValue('status')}'
-            floor = f'floor={self.getParameterValue('floor')}'
-            upper =f'upper={self.getParameterValue('upper')}'
-            s = f'{parameter}\n{status}{floor}{upper}'
-            io.writeFile(filePath, s)
-
-        elif defParameter == 'status':
-            pass
-        elif defParameter == 'floor':
-            pass
-        elif defParameter == 'upper':
-            pass
-        '''
-
     def isPathCorrect(self, msgFromClient):
         accessiblePaths = { '0': '/auth',
                             '1': '/status',
@@ -175,3 +162,15 @@ class Controller(object):
     def getPath(self,clientMsg):
         path = clientMsg.split()[1]
         return path
+
+    def isExpDateValid(self, expDate):
+        v = expDate.split('/')
+        expMonth = int(v[0])
+        expYear = int(v[1])
+        currentMonth = datetime.now().month
+        currentYear = int(str(datetime.now().year)[2:4]) #casting
+        if expYear < currentYear:
+            return False
+        elif expYear == currentYear and expMonth < currentMonth:
+            return False
+        return True

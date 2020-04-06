@@ -17,6 +17,7 @@ class Controller(object):
 
     def parseRequest(self):
         msgFromClient = io.readMessage(self.csocket)
+        print(f"The path is: {self.getPath(msgFromClient)}\n")
 
         if not(self.checkMethod(msgFromClient)):
             self.sendMethodNotAllowed()
@@ -142,7 +143,6 @@ class Controller(object):
     def getPath(self,clientMsg):
         if len(clientMsg) > 0:
             path = clientMsg.split()[1]
-            print(f"The path is: {path}\n")
             return path
         else:
             return ''

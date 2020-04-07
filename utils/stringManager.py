@@ -59,6 +59,9 @@ def setCode(msg, code):
 def setMessageAnswer(msg, answer):
     return msg + f' {answer}'
 
+def setServer(msg, server):
+    return msg + f'\nServer: {server}'
+
 ''' Helper methods for setting the message correctly according to the protocol '''
 def setResourcePath(path):
     return f'ResourcePath:{path}'

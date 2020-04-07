@@ -2,6 +2,9 @@ import os
 import sys
 import socket
 import json
+import platform
+
+server_name = 'Python socket server, running on ' + platform.system() + platform.release()
 
 pathRepo = os.path.dirname(os.path.dirname(os.getcwd()))
 sys.path.insert(1, pathRepo)
@@ -74,7 +77,8 @@ class Controller(object):
         s = sm.setMessageAnswer(s, 'Not Found')
         s = sm.setContentLength(s, page_length)
         s = sm.setContentType(s, 'text/html')
-        s = sm.setConnection(s, 'Close\n\n')
+        s = sm.setConnection(s, 'Close')
+        s = sm.setServer(s, server_name+'\n\n')
         s = s + updatedHTML
         io.writeMessage(self.csocket, s)
 
@@ -98,7 +102,8 @@ class Controller(object):
         s = sm.setMessageAnswer(s, 'Method Not Allowed')
         s = sm.setContentLength(s, page_length)
         s = sm.setContentType(s, 'text/html')
-        s = sm.setConnection(s, 'Close\n\n')
+        s = sm.setConnection(s, 'Close')
+        s = sm.setServer(s, server_name+'\n\n')
         s = s + updatedHTML
         io.writeMessage(self.csocket, s)
 
@@ -117,7 +122,8 @@ class Controller(object):
         s = sm.setMessageAnswer(s, 'Bad Request')
         s = sm.setContentLength(s, page_length)
         s = sm.setContentType(s, 'text/html')
-        s = sm.setConnection(s, 'Close\n\n')
+        s = sm.setConnection(s, 'Close')
+        s = sm.setServer(s, server_name+'\n\n')
         s = s + updatedHTML
         io.writeMessage(self.csocket, s)
         io.closeConnection(self.csocket)
@@ -156,7 +162,8 @@ class Controller(object):
         s = sm.setContentLength(s, pageLength)
         s = sm.setContentType(s, 'text/html')
         s = sm.setConnection(s, 'Close')
-        s = s + f'\n\n{page}'
+        s = sm.setServer(s, server_name+'\n\n')
+        s = s + page
         io.writeMessage(self.csocket, s)
 
     def sendFavicon(self):
@@ -168,7 +175,8 @@ class Controller(object):
         s = sm.setContentLength(s, faviconLength)
         s = sm.setContentType(s, 'image/x-icon')
         s = sm.setConnection(s, 'Close')
-        s = s + f'\n\n{favicon}'
+        s = sm.setServer(s, server_name+'\n\n')
+        s = s + favicon
         print(f"Message to send to the client as response: favicon ")
         io.writeMessage(self.csocket, s)
 
@@ -232,7 +240,8 @@ class Controller(object):
         s = sm.setContentLength(s, pageLength)
         s = sm.setContentType(s, 'text/html')
         s = sm.setConnection(s, 'Close')
-        s = s + f'\n\n{html_page}'
+        s = sm.setServer(s, server_name+'\n\n')
+        s = s + html_page
         io.writeMessage(self.csocket, s)
 
 
@@ -274,11 +283,12 @@ class Controller(object):
         updatedHTML = v[0] + newContent + v[1]
         page_length = len(updatedHTML)
 
-        s = sm.setCode('HTTP/1.1', 500)
-        s = sm.setMessageAnswer(s, 'Internal Server Error')
+        s = sm.setCode('HTTP/1.1', 409)
+        s = sm.setMessageAnswer(s, 'Conflict')
         s = sm.setContentLength(s, page_length)
         s = sm.setContentType(s, 'text/html')
-        s = sm.setConnection(s, 'Close\n\n')
+        s = sm.setConnection(s, 'Close')
+        s = sm.setServer(s, server_name+'\n\n')
         s = s + updatedHTML
         io.writeMessage(self.csocket, s)
         io.closeConnection(self.csocket)

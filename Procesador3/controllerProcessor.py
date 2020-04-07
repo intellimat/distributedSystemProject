@@ -94,6 +94,10 @@ class Controller(object):
         dictionary = sm.getQueryStringParameters(queryStringParameters)
         if 'set' in dictionary:
             value = dictionary.get('set')
+            if parameter == 'fl':
+                parameter = 'floor'
+            elif parameter == 'ul':
+                parameter = 'upper'
             self.setProcParameter(f'{parameter}={value}')
             return f'Parameter {parameter} has been updated with the value {value}.'
         else:
@@ -143,7 +147,7 @@ class Controller(object):
         before = v[0]
         after = v[1].split('\n')[1]
         middle = parameter + '\n'
-        s = before + middle + after
+        s = before + middle + after + '\n'
         io.writeFile(filePath, s)
 
     def isPathCorrect(self, msgFromClient):
@@ -169,7 +173,6 @@ class Controller(object):
         expYear = int(v[1])
         currentMonth = datetime.now().month
         currentYear = int(str(datetime.now().year)[2:4]) #casting
-
         if expYear < currentYear:
             return False
         elif expYear == currentYear and expMonth < currentMonth:

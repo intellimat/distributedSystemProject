@@ -1,3 +1,4 @@
 id=2
 status=OFF
-floor=2
+floor=11
+upper=1000

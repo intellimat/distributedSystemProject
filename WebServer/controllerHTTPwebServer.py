@@ -238,7 +238,7 @@ class Controller(object):
 
     def handleGatewayRequest(self, msgFromClient):
         try:
-            self.gs = io.establishConnection(('localhost', 12000)) #throws exception
+            self.gs = io.establishConnection((self.gatewayIP, self.gatewayPORT)) #throws exception
             print('\nConnected to the gateway.\n')
             path = self.getPath(msgFromClient).split('?')[0]
 

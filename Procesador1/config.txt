@@ -1,4 +1,4 @@
 id=1
 status=ON
-floor=2
-upper=10000
+floor=3
+upper=900

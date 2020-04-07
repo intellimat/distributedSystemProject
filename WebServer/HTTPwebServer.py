@@ -17,7 +17,7 @@ class threadServer(Thread):
 
 # AF_INET means IPv4, SCOCK_STREM means TCP
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-IP = '127.0.0.1'    #localhost
+IP = ''    #localhost
 PORT = int(input('\nSpecify a port (a integer higher than 10000): '))
 s.bind((IP, PORT))
 threads = []

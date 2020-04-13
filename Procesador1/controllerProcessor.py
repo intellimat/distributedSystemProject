@@ -107,7 +107,7 @@ class Controller(object):
     def getAuthOutcome(self, msgContent):
         d = date.today().strftime("%B %d, %Y")
 
-        if self.getParameterValue('status') == 'ON':
+        if self.getParameterValue('status') == 'ON' or self.getParameterValue('status') == 'on':
             expDate = msgContent.split('Parameters[]:')[1].split('\n')[0].split('#')[-2]
             amount = int(msgContent.split('Parameters[]:')[1].split('\n')[0].split('#')[-1])
             if self.isExpDateValid(expDate):
@@ -145,9 +145,9 @@ class Controller(object):
         defParameter = parameter.split('=')[0]
         v = f.split(defParameter)
         before = v[0]
-        after = v[1].split('\n')[1]
+        after = v[1].split('\n', 1)[1]
         middle = parameter + '\n'
-        s = before + middle + after + '\n'
+        s = before + middle + after
         io.writeFile(filePath, s)
 
     def isPathCorrect(self, msgFromClient):

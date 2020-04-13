@@ -1,4 +1,4 @@
 id=2
 status=OFF
-floor=11
-upper=1000
+floor=15
+upper=1700

@@ -23,6 +23,8 @@ def readFile(path): #reads a file stored in a directory specified by the path ar
     f.close()
     if len(content) < 100:
         print(f'\nRead file:\n{content}\n\n')
+    else:
+        print('Read a large file. ')
     return content
 
 def writeFile(path, content):   #write a file in the directory specified byt the path argument
@@ -35,7 +37,10 @@ def writeFile(path, content):   #write a file in the directory specified byt the
 def writeMessage(socket, data): #writes a message on a given socket
     host, port = socket.getpeername()
     socket.send(bytes(data,"utf-8"))
-    print(f'Sent:\n{data} to {host} on port {port}\n')
+    if len(data)<500:
+        print(f'Sent:\n{data} to {host} on port {port}\n')
+    else:
+        print(f'Sent a large quantity of data to {host} on port {port}')
 
 
 def closeConnection(socket): #closes a TCP connection reachable through the socket argument

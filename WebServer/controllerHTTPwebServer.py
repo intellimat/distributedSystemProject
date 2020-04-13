@@ -41,6 +41,8 @@ class Controller(object):
             self.sendHomepage()
             io.closeConnection(self.csocket)
 
+        elif self.isFrontendRequest(msgFromClient):
+            self.manageFrontendRequest(msgFromClient)
 
         else:
             self.sendBadRequest()
@@ -55,7 +57,11 @@ class Controller(object):
                             '5': '/gatewaySD/auth',
                             '6': '/gatewaySD/status',
                             '7': '/gatewaySD/fl',
-                            '8': '/gatewaySD/ul'}
+                            '8': '/gatewaySD/ul',
+                            '9': '/Frontend_Jquery_Bootstrap/bootstrap-4.0.0/dist/css/bootstrap.css',
+                            '10': '/Frontend_Jquery_Bootstrap/jquery.js',
+                            '11': '/Frontend_Jquery_Bootstrap/bootstrap-4.0.0/dist/js/bootstrap.js',
+                            '12': '/Frontend_Jquery_Bootstrap/bootstrap-4.0.0/dist/js/bootstrap.js.map'}
 
         path = self.getPath(msgFromClient).split('?')[0]
         for n in accessiblePaths:
@@ -63,6 +69,25 @@ class Controller(object):
                 return True
         return False
 
+    def isFrontendRequest(self, msgFromClient):
+        path = self.getPath(msgFromClient).split('/', 2)[1]
+        return path =='Frontend_Jquery_Bootstrap'
+
+    def manageFrontendRequest(self, msgFromClient):
+        path = self.getPath(msgFromClient)
+        contentType = 'text/' +  path.split('.')[-1]
+        code = io.readFile(os.curdir + path)
+        pageLength = len(code)
+        # s is the response message
+        s = sm.setCode('HTTP/1.1', 200)
+        s = sm.setMessageAnswer(s, 'OK')
+        s = sm.setContentLength(s, pageLength)
+        s = sm.setContentType(s, contentType)
+        s = sm.setConnection(s, 'Close')
+        s = sm.setServer(s, server_name+'\n\n')
+        s = s + code
+        io.writeMessage(self.csocket, s)
+        io.closeConnection(self.csocket)
 
     def sendNotExistingPath(self):
         html_page = io.readFile(os.path.curdir + '/error.html')

@@ -76,7 +76,7 @@ $( document ).ready(function() {
              let expDate = document.getElementById('expDate').value;
              let amount = document.getElementById('amount').value;
 
-            expDate = expDate.split('-')[1] + '/' + expDate.split('-')[0];
+            expDate = expDate.split('-')[1] + '/' + String(parseInt(expDate.split('-')[0])%100); //fprmat 03/22
              // console.log(name + ' ' + surname + ' ' + email + ' ' + username + ' ' + password + ' ' + role);
 
              let completeName = name + surname

@@ -171,7 +171,7 @@ class Controller(object):
         if '/' in expDate:
             v = expDate.split('/')
             expMonth = int(v[0])
-            expYear = int(str(v[1])[2:4])
+            expYear = int(v[1])
             currentMonth = datetime.now().month
             currentYear = int(str(datetime.now().year)[2:4]) #casting
             if expYear < currentYear:

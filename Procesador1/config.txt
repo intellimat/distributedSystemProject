@@ -1,4 +1,5 @@
 id=1
 status=ON
 floor=3
-upper=900
+upper=1300
+

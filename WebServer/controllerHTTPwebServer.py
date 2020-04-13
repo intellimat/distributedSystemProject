@@ -1,10 +1,9 @@
 import os
 import sys
 import socket
-import json
 import platform
 
-server_name = 'Python socket server, running on ' + platform.system() + platform.release()
+server_name = 'Python 3.8 server, running on ' + platform.system() + ' ' + platform.release()
 
 pathRepo = os.path.dirname(os.path.dirname(os.getcwd()))
 sys.path.insert(1, pathRepo)
@@ -68,7 +67,7 @@ class Controller(object):
     def sendNotExistingPath(self):
         html_page = io.readFile(os.path.curdir + '/error.html')
         newContent = '''<body>\n<div id="msg_instruction"> 404 Not Found </div>
-                        <div id="details"> The path specified in the HTTP request is does not exist.
+                        <div id="details"> The path specified in the HTTP request does not exist.
                                              </div>'''
         v = html_page.split('<body>')
         updatedHTML = v[0] + newContent + v[1]

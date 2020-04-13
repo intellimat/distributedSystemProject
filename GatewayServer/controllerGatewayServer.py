@@ -1,6 +1,5 @@
 import socket
 import os, sys
-import json
 import pathlib
 
 pathRepo = os.path.dirname(os.path.dirname(os.getcwd()))

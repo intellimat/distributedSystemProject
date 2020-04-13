@@ -1,4 +1,5 @@
 class NetworkException(Exception):
+    ''' Any problem happening on the network communication between two machines. '''
     def __init__(self, message):
         self.message = message
 

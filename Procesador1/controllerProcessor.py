@@ -1,14 +1,14 @@
 import socket
 import os, sys
-import json
 import pathlib
 
 pathRepo = os.path.dirname(os.path.dirname(os.getcwd()))
-sys.path.insert(1, pathRepo)
+sys.path.insert(1, pathRepo)    #We are setting the path to import the modules
 
 from distributedSystemProject.utils import inputOutput as io
 from distributedSystemProject.utils import stringManager as sm
-from distributedSystemProject.utils.Exception import NetworkException
+from distributedSystemProject.utils.Exception import NetworkException, ParametersNotCorrect
+
 from random import randint
 from datetime import date, datetime
 
@@ -66,11 +66,11 @@ class Controller(object):
                     response = io.readMessage(p_socket)
                 if response != '<ACK>' and '<EOT>' not in response:
                     io.writeMessage(p_socket, '<EOT>')
-                    raise NetworkException('The gateway cannot receive data correctly.  ')
+                    raise NetworkException('The gateway cannot receive data correctly. ')
                 elif '<EOT>' not in response:
                     endMessage = io.readMessage(p_socket) #waiting for <EOT>
             else:
-                raise NetworkException("The processor couldn't receive data correctly from the Gateway")
+                raise NetworkException("The processor couldn't receive data correctly from the Gateway. ")
 
     def handleMessageAndGetResponse(self, msgContent):
         resourcePath = msgContent.split('ResourcePath:')[1].split('\n')[0]
@@ -102,7 +102,7 @@ class Controller(object):
             return f'Parameter {parameter} has been updated with the value {value}.'
         else:
             value = self.getParameterValue(parameter)
-            return f'{parameter}={value}.'
+            return f'{parameter}={value}'
 
     def getAuthOutcome(self, msgContent):
         d = date.today().strftime("%B %d, %Y")
@@ -114,11 +114,11 @@ class Controller(object):
                 floorLimit = int(self.getParameterValue('floor'))
                 upperLimit = int(self.getParameterValue('upper'))
                 if amount > floorLimit and amount<upperLimit:
-                    outcome = f'ACCEPTED <br>AuthCode: {randint(0,1000)} <br>Amount: {amount} euro <br>Date: {d}'
+                    outcome = f'<font color="green"> ACCEPTED </font> <br>AuthCode: {randint(0,1000)} <br>Amount: {amount} euro <br>Date: {d}'
                 else:
-                    outcome = f'REFUSED <br>AuthCode: {randint(0,1000)} <br>Amount: {amount} euro <br>Date: {d}'
+                    outcome = f'<font color="red"> REFUSED </font> <br>AuthCode: {randint(0,1000)} <br>Amount: {amount} euro <br>Date: {d}'
             else:
-                outcome = f'REFUSED <br>AuthCode: {randint(0,1000)} <br>Amount: {amount} euro <br>Date: {d} <br> The card provided has expired. '
+                outcome = f'<font color="red"> REFUSED </font> <br>AuthCode: {randint(0,1000)} <br>Amount: {amount} euro <br>Date: {d} <br> The card provided has expired. '
         else:
             outcome = f'The processor is not available for processing your payment request. '
         return outcome
@@ -167,14 +167,17 @@ class Controller(object):
         path = clientMsg.split()[1]
         return path
 
-    def isExpDateValid(self, expDate):
-        v = expDate.split('/')
-        expMonth = int(v[0])
-        expYear = int(v[1])
-        currentMonth = datetime.now().month
-        currentYear = int(str(datetime.now().year)[2:4]) #casting
-        if expYear < currentYear:
-            return False
-        elif expYear == currentYear and expMonth < currentMonth:
-            return False
-        return True
+    def isExpDateValid(self, expDate): #checks if the expiration date is valid
+        if '/' in expDate:
+            v = expDate.split('/')
+            expMonth = int(v[0])
+            expYear = int(str(v[1])[2:4])
+            currentMonth = datetime.now().month
+            currentYear = int(str(datetime.now().year)[2:4]) #casting
+            if expYear < currentYear:
+                return False
+            elif expYear == currentYear and expMonth < currentMonth:
+                return False
+            return True
+        else:
+            raise ParametersNotCorrect('Invalid date format. The date format must be month/year (for instance, 02/22). ')

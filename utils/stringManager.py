@@ -1,5 +1,5 @@
-import json
 from distributedSystemProject.utils.Exception import ParametersNotCorrect
+
 def calculate_LRC(data):
     lrc = 0x00
     for element in data:
@@ -14,7 +14,7 @@ def getLRCvalueFromString(s): #s is the string
     l = [ord(i) for i in s]
     return calculate_LRC(l)
 
-def isLRC_ok(msgFromProc):  #deprecated
+def isLRC_ok(msgFromProc):
     v = msgFromProc.split('<STX>')
     vu = v[1].split('<ETX>')
     answer = vu[0]
@@ -44,6 +44,7 @@ def getQueryStringParameters(url): #returns a dictionary with all the parameters
     except (ValueError,IndexError) as exc:
         raise ParametersNotCorrect(str(exc))
 
+''' This methods down here help to format correctly the http requests. '''
 def setContentLength(msg, msgLength):
     return msg + f'\nContent-Length: {msgLength}'
 
@@ -62,7 +63,7 @@ def setMessageAnswer(msg, answer):
 def setServer(msg, server):
     return msg + f'\nServer: {server}'
 
-''' Helper methods for setting the message correctly according to the protocol '''
+''' Helper methods for setting the message correctly according to the protocol implemented. '''
 def setResourcePath(path):
     return f'ResourcePath:{path}'
 

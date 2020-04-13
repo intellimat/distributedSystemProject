@@ -1,4 +1,3 @@
-import sys
 import socket
 from threading import Thread
 
@@ -12,14 +11,16 @@ class threadServer(Thread):
         self.controller = controllerHTTPwebServer.Controller(csocket)
         self.controller.gatewayIP = gatewayIP
         self.controller.gatewayPORT = gatewayPORT
-        print(f'New server socket thread created.')
+        print('New server socket thread created.')
 
     def run(self): #code run by each thread
         self.controller.parseRequest()
 
+print('\n########## HTTP WEB SERVER ##########')
+
 # AF_INET means IPv4, SCOCK_STREM means TCP
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-IP = ''    #localhost
+IP = ''    #localhost but the server accepts connections by any client IP
 PORT = int(input('\nSpecify a port for the HTTP web server (an integer higher than 10000): '))
 s.bind((IP, PORT))
 
@@ -33,7 +34,7 @@ while True:
     print('\nServer is listening for new connections.\n')
     clientsocket, address = s.accept()
     print(f"\nConnection from {address} has been established!\n")
-    print(f"Creating a thread to manage this connection.\n")
+    print("Creating a thread to manage this connection.\n")
     newThread = threadServer(clientsocket)
     newThread.start()
     threads.append(newThread)

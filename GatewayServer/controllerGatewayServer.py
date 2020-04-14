@@ -186,7 +186,7 @@ class Controller(object):
             lrcReceived = message.split('<ETX>')[1]
             lrcCalculated = str(sm.getLRCvalueFromString(content))
             receivedEOT = False
-            print(f'lrcCalculated = {lrcCalculated}\nlrcReceived = {lrcReceived}')
+            print(f'lrcCalculated = {lrcCalculated}\nlrcReceived = {lrcReceived}\n')
             while (not receivedEOT) and (lrcCalculated != lrcReceived):
                 io.writeMessage(p_socket, '<NACK>')
                 message = io.readMessage(p_socket)

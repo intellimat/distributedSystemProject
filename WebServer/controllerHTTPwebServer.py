@@ -190,7 +190,8 @@ class Controller(object):
         io.writeMessage(self.csocket, s)
 
     def sendFavicon(self):
-        favicon = io.readFile(os.curdir + '/favicon.ico')
+        #favicon = io.readFile(os.curdir + '/favicon.ico')
+        favicon = ''
         faviconLength = len(favicon)
         # s is the response message
         s = sm.setCode('HTTP/1.1', 200)

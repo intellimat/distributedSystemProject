@@ -43,7 +43,7 @@ class Controller(object):
 
         elif self.isFrontendRequest(msgFromClient):
             self.manageFrontendRequest(msgFromClient)
-            #the connection will be closed by the manageFrontendRequest method
+            #the connection will be closed by the manageFrontendRequest 
 
         else:
             self.sendBadRequest()
@@ -198,7 +198,7 @@ class Controller(object):
         s = sm.setCode('HTTP/1.1', 200)
         s = sm.setMessageAnswer(s, 'OK')
         s = sm.setContentLength(s, faviconLength)
-        s = sm.setContentType(s, 'image')
+        s = sm.setContentType(s, 'image/x-icon')
         s = sm.setConnection(s, 'Close')
         s = sm.setServer(s, server_name+'\n\n')
         s = s + favicon

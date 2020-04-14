@@ -16,11 +16,8 @@
      }
 
     </style>
-     <link href="https://fonts.googleapis.com/css?family=Raleway|Montserrat|Nunito+Sans|Ubuntu+Condensed&display=swap" rel="stylesheet">
 
 </head>
-
-
 
 <body>
 
@@ -53,24 +50,19 @@
         <button type='button' class="btn btn-primary btn-lg" id="submit_button">PAY</button>
     </form>
 
-
-
 <script src="/Frontend_Jquery_Bootstrap/jquery.js"></script>
-
-<script src="/Frontend_Jquery_Bootstrap/bootstrap-4.0.0/dist/js/bootstrap.js"></script>
 
 <script>
 $( document ).ready(function() {
     $('#submit_button').click(function(){
-             let name = document.getElementById('name').value;
-             let surname = document.getElementById('surname').value;
-             let cardNumber = document.getElementById('cardNumber').value;
-             let cvv = document.getElementById('cvv').value;
-             let expDate = document.getElementById('expDate').value;
-             let amount = document.getElementById('amount').value;
+             let name         =  document.getElementById('name').value;
+             let surname      =  document.getElementById('surname').value;
+             let cardNumber   =  document.getElementById('cardNumber').value;
+             let cvv          =  document.getElementById('cvv').value;
+             let expDate      =  document.getElementById('expDate').value;
+             let amount       =  document.getElementById('amount').value;
 
             expDate = expDate.split('-')[1] + '/' + String(parseInt(expDate.split('-')[0])%100); //fprmat 03/22
-             // console.log(name + ' ' + surname + ' ' + email + ' ' + username + ' ' + password + ' ' + role);
 
              let completeName = name + surname
              let url = `gatewaySD/auth?name=${completeName}&cardNumber=${cardNumber}&cvv=${cvv}&expDate=${expDate}&amount=${amount}`
@@ -93,12 +85,9 @@ $( document ).ready(function() {
                  }
                 });
 
-
      });
 
 });
-
-
 
 </script>
 

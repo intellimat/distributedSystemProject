@@ -43,7 +43,7 @@ class Controller(object):
 
         elif self.isFrontendRequest(msgFromClient):
             self.manageFrontendRequest(msgFromClient)
-            #the connection will be closed by the manageFrontendRequest 
+            #the connection will be closed by the manageFrontendRequest
 
         else:
             self.sendBadRequest()
@@ -59,10 +59,8 @@ class Controller(object):
                             '6': '/gatewaySD/status',
                             '7': '/gatewaySD/fl',
                             '8': '/gatewaySD/ul',
-                            '9': '/Frontend_Jquery_Bootstrap/bootstrap-4.0.0/dist/css/bootstrap.css',
-                            '10': '/Frontend_Jquery_Bootstrap/jquery.js',
-                            '11': '/Frontend_Jquery_Bootstrap/bootstrap-4.0.0/dist/js/bootstrap.js',
-                            '12': '/Frontend_Jquery_Bootstrap/bootstrap-4.0.0/dist/js/bootstrap.js.map'}
+                            '9': '/Frontend_Jquery_Bootstrap/bootstrap-4.0.0/css/bootstrap.css',
+                            '10': '/Frontend_Jquery_Bootstrap/jquery.js'}
 
         path = self.getPath(msgFromClient).split('?')[0]
         for n in accessiblePaths:

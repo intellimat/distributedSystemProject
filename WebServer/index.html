@@ -55,52 +55,71 @@
 <script>
 $( document ).ready(function() {
     $('#submit_button').click(function(){
-             let name         =  document.getElementById('name').value;
-             let surname      =  document.getElementById('surname').value;
-             let cardNumber   =  document.getElementById('cardNumber').value;
-             let cvv          =  document.getElementById('cvv').value;
-             let expDate      =  document.getElementById('expDate').value;
-             let amount       =  document.getElementById('amount').value;
+            let name         =  document.getElementById('name').value;
+            let surname      =  document.getElementById('surname').value;
+            let cardNumber   =  document.getElementById('cardNumber').value;
+            let cvv          =  document.getElementById('cvv').value;
+            let expDate      =  document.getElementById('expDate').value;
+            let amount       =  document.getElementById('amount').value;
 
-             console.log(expDate)
 
-            if (name.length!=0 & surname.length!=0 & String(cardNumber).length!=0 &
-                 String(cvv).length!=0 & expDate.length!=0 & String(amount).length!=0)
-                 {
-                     expDate = expDate.split('-')[1] + '/' + String(parseInt(expDate.split('-')[0])%100); //fprmat 03/22
+            if (checkDateFormat(expDate))
+            {
+                if (name.length!=0 & surname.length!=0 & String(cardNumber).length!=0 &
+                     String(cvv).length!=0 & expDate.length!=0 & String(amount).length!=0)
+                     {
+                         expDate = expDate.split('-')[1] + '/' + String(parseInt(expDate.split('-')[0])%100); //fprmat 03/22
 
-                      let completeName = name + surname
-                      let url = `gatewaySD/auth?name=${completeName}&cardNumber=${cardNumber}&cvv=${cvv}&expDate=${expDate}&amount=${amount}`
+                          let completeName = name + surname
+                          let url = `gatewaySD/auth?name=${completeName}&cardNumber=${cardNumber}&cvv=${cvv}&expDate=${expDate}&amount=${amount}`
 
-                      $.ajax({
-                          type: "GET",
-                          url: url,
-                          dataType: "html",
-                          success: function (data) {
-                              console.log('SUCCESS')
-                              $('html').empty();
-                              document.write(data);
-                          },
-                          error: function (xhr, ajaxOptions, thrownError) {
-                              console.log('xHR: ' + xhr);
-                              $('html').empty();
-                              document.write(xhr.responseText);
-                              console.log('ajaxOption: ' + ajaxOptions);
-                              console.log('thrownError: ' + thrownError);
-                          }
-                         });
-                 }
-            else
-                {
+                          makeAjaxGETrequest(url)
+                     }
+                else {
                     alert("All the fields are mandatory. They must be all filled in. ")
                 }
-
-
-
+            }
+            else {
+                    alert("Date format incorrect. It must be YYYY-MM, for instance 2023/04")
+            }
 
      });
 
 });
+
+function checkDateFormat(expDate) {
+    digits = ['0','1','2','3','3','4','5','6','7','8','9']
+    for(i=0;i<4;i++){
+        if (!digits.includes(expDate[i]))
+            {return false}
+    }
+
+    if (expDate[4]!= '-')
+        {return false}
+    if (!digits.includes(expDate[5]) || !digits.includes(expDate[6]))
+        {return false}
+    return true;
+}
+
+function makeAjaxGETrequest(url){
+    $.ajax({
+        type: "GET",
+        url: url,
+        dataType: "html",
+        success: function (data) {
+            console.log('SUCCESS')
+            $('html').empty();
+            document.write(data);
+        },
+        error: function (xhr, ajaxOptions, thrownError) {
+            console.log('xHR: ' + xhr);
+            $('html').empty();
+            document.write(xhr.responseText);
+            console.log('ajaxOption: ' + ajaxOptions);
+            console.log('thrownError: ' + thrownError);
+        }
+       });
+}
 
 </script>
 
